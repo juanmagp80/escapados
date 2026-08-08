@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+button,
+select {
+  font-family: inherit;
+}
+
+/* Hide number input spinners for a cleaner mobile look */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-brand-500 px-6 py-3.5
+      text-base font-semibold text-white shadow-soft transition active:scale-[0.98]
+      disabled:opacity-60;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-brand-200
+      bg-white px-5 py-3 text-sm font-medium text-brand-700 transition active:scale-[0.98];
+  }
+  .field {
+    @apply w-full rounded-2xl border border-stone-200 bg-white px-4 py-3.5 text-base
+      text-ink outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100;
+  }
+  .card {
+    @apply rounded-xl2 bg-white shadow-card;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm
+      font-medium text-brand-700;
+  }
+  .container-app {
+    @apply mx-auto w-full max-w-3xl px-4 pb-12 pt-8 sm:px-6 sm:pt-10
+      lg:max-w-4xl;
+  }
+  .container-narrow {
+    @apply mx-auto w-full max-w-md px-5 pb-10 pt-12 sm:pt-14 lg:max-w-5xl;
+  }
+}

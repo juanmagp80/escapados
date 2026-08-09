@@ -22,6 +22,17 @@ function price(value) {
   return typeof value === "number" && value > 0 ? `${value.toFixed(3)} €/L` : "—";
 }
 
+// Acota la polilínea a un máximo de puntos para no superar el límite de URL.
+function sampleRoute(coords, maxPoints = 100) {
+  if (!Array.isArray(coords) || coords.length <= maxPoints) return coords;
+  const stride = Math.ceil((coords.length - 1) / (maxPoints - 1));
+  const out = [];
+  for (let i = 0; i < coords.length; i += stride) out.push(coords[i]);
+  const last = coords[coords.length - 1];
+  if (out[out.length - 1] !== last) out.push(last);
+  return out;
+}
+
 function GasStationCard({ station }) {
   const content = (
     <>
@@ -72,7 +83,13 @@ function GasStationCard({ station }) {
   );
 }
 
-export default function GasStationsList({ originLat, originLon, destLat, destLon }) {
+export default function GasStationsList({
+  originLat,
+  originLon,
+  destLat,
+  destLon,
+  routeCoordinates,
+}) {
   const [state, setState] = useState({ status: "loading", stations: [] });
 
   useEffect(() => {
@@ -82,6 +99,13 @@ export default function GasStationsList({ originLat, originLon, destLat, destLon
       destLat: String(destLat),
       destLon: String(destLon),
     });
+
+    if (
+      Array.isArray(routeCoordinates) &&
+      routeCoordinates.length >= 2
+    ) {
+      params.set("route", JSON.stringify(sampleRoute(routeCoordinates)));
+    }
 
     const ctrl = new AbortController();
     setState({ status: "loading", stations: [] });
@@ -98,7 +122,7 @@ export default function GasStationsList({ originLat, originLon, destLat, destLon
       .catch(() => setState({ status: "empty", stations: [] }));
 
     return () => ctrl.abort();
-  }, [originLat, originLon, destLat, destLon]);
+  }, [originLat, originLon, destLat, destLon, routeCoordinates]);
 
   if (state.status === "loading") return <Skeleton />;
   if (state.status === "empty" || state.stations.length === 0)

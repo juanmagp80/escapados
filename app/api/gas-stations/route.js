@@ -4,6 +4,23 @@ import { withFallback } from "@/lib/utils/cache";
 
 export const dynamic = "force-dynamic";
 
+function parseRouteCoords(raw) {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (
+      Array.isArray(parsed) &&
+      parsed.length >= 2 &&
+      parsed.every((p) => Array.isArray(p) && p.length === 2)
+    ) {
+      return parsed;
+    }
+  } catch {
+    // ignorar geometría inválida
+  }
+  return null;
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const originLat = parseFloat(searchParams.get("originLat"));
@@ -25,7 +42,10 @@ export async function GET(request) {
       getGasStationsAlongRoute(
         { lat: originLat, lon: originLon },
         { lat: destLat, lon: destLon },
-        parseInt(searchParams.get("count"), 10) || 5
+        {
+          count: parseInt(searchParams.get("count"), 10) || 5,
+          route: parseRouteCoords(searchParams.get("route")),
+        }
       ),
     []
   );

@@ -19,9 +19,19 @@ function HotelCard({ hotel }) {
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-ink">{hotel.name}</p>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-stone-500">
-          {hotel.rating ? <span>⭐ {hotel.rating.toFixed(1)}</span> : null}
+          {hotel.rating ? (
+            <span>
+              ⭐ {hotel.rating.toFixed ? hotel.rating.toFixed(1) : hotel.rating}
+            </span>
+          ) : null}
           {hotel.reviews ? <span>({hotel.reviews})</span> : null}
+          {hotel.distanceKm != null ? (
+            <span>📍 a {hotel.distanceKm} km del centro</span>
+          ) : null}
         </div>
+        {hotel.address ? (
+          <p className="truncate text-xs text-stone-400">{hotel.address}</p>
+        ) : null}
         <div className="mt-1 text-sm">
           {hotel.pricePerNight ? (
             <span className="font-semibold text-ink">

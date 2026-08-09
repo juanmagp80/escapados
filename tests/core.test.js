@@ -1,4 +1,4 @@
-import { calculateFuel, carTotalCost, blablacarIncome } from "@/lib/fuel/cost";
+import { calculateFuel, carTotalCost, blablacarIncome, carSeatsAvailable, suggestedPricePerSeat, blablacarEffectiveCost } from "@/lib/fuel/cost";
 import { nightsBetween, formatEuro, slugify } from "@/lib/utils/format";
 import { scoreDestination, DEFAULT_SCORING_WEIGHTS } from "@/lib/destinations/scoring";
 
@@ -50,6 +50,27 @@ describe("fuel/cost", () => {
     expect(blablacarIncome(15, 3)).toBe(45);
     expect(blablacarIncome(0, 3)).toBe(0);
     expect(blablacarIncome(15, 0)).toBe(0);
+  });
+
+  test("carSeatsAvailable - free passenger seats", () => {
+    expect(carSeatsAvailable(1, 5)).toBe(4);
+    expect(carSeatsAvailable(2, 5)).toBe(3);
+    expect(carSeatsAvailable(5, 5)).toBe(0);
+    expect(carSeatsAvailable(0, 5)).toBe(4);
+  });
+
+  test("suggestedPricePerSeat - fair split among occupants", () => {
+    expect(suggestedPricePerSeat({ fuelCost: 50, tolls: 10, occupants: 4 })).toBe(15);
+    expect(suggestedPricePerSeat({ fuelCost: 42, tolls: 0, occupants: 5 })).toBeCloseTo(8.4, 1);
+    expect(suggestedPricePerSeat({ fuelCost: 0, tolls: 0, occupants: 3 })).toBe(0);
+    expect(suggestedPricePerSeat({ occupants: 1 })).toBe(0);
+  });
+
+  test("blablacarEffectiveCost - never negative", () => {
+    expect(blablacarEffectiveCost(50, 40)).toBe(10);
+    expect(blablacarEffectiveCost(50, 60)).toBe(0);
+    expect(blablacarEffectiveCost(0, 40)).toBe(0);
+    expect(blablacarEffectiveCost(50, 0)).toBe(50);
   });
 });
 

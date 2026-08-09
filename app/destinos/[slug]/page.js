@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { getDestinationDetail } from "@/lib/destinations/detail";
 import { estimateTripCost } from "@/lib/destinations/costEstimate";
-import { getHotels } from "@/lib/serpapi/providers/hotels";
+import { getHotelsFromGoogle } from "@/lib/serpapi/providers/hotels";
 import { withFallback } from "@/lib/utils/cache";
-import HotelList from "@/components/hotels/HotelList";
 import { formatEuro, formatKm, formatDuration, nightsBetween } from "@/lib/utils/format";
 import { describeWeatherCode } from "@/lib/weather/openMeteo";
 import SerpFetcher from "@/components/places/SerpFetcher";
@@ -57,7 +56,7 @@ export default async function DestinoPage({ params, searchParams }) {
   if (query.startDate && query.endDate) {
     const result = await withFallback(
       () =>
-        getHotels({
+        getHotelsFromGoogle({
           q: name,
           checkIn: query.startDate,
           checkOut: query.endDate,
@@ -221,6 +220,7 @@ export default async function DestinoPage({ params, searchParams }) {
               originLon={detail.origin?.lon}
               destLat={destination.lat}
               destLon={destination.lon}
+              routeCoordinates={route.coordinates}
             />
           </Section>
         )}
@@ -232,18 +232,22 @@ export default async function DestinoPage({ params, searchParams }) {
         )}
 
         <Section icon="🏨" title="Alojamiento">
-          {hotels.length > 0 ? (
-            <HotelList items={hotels} data={{ source: "Google Hotels" }} />
-          ) : (
-            <p className="text-sm text-stone-400">
-              No hay alojamientos disponibles para estas fechas en{" "}
-              {name}. Prueba con otras fechas.
-            </p>
-          )}
+          <SerpFetcher
+            endpoint="hotels"
+            query={name}
+            kind="hotels"
+            icon="🏨"
+            checkIn={query.startDate}
+            checkOut={query.endDate}
+            guests={query.travelers}
+            lat={destination?.lat}
+            lon={destination?.lon}
+          />
           {query.startDate && (
             <p className="pt-2 text-xs text-stone-400">
-              Precios reales para {query.startDate} → {query.endDate} ·{" "}
-              {query.travelers} personas
+              {query.startDate} → {query.endDate} · {query.travelers} personas.
+              Si no aparecen precios, puede que Google Hotels esté sin cuota y
+              mostramos alojamientos del mapa (sin precio).
             </p>
           )}
         </Section>

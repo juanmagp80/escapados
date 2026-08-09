@@ -36,6 +36,8 @@ export default function SerpFetcher({
   checkIn,
   checkOut,
   guests,
+  lat,
+  lon,
 }) {
   const [state, setState] = useState({ status: "loading", data: null });
 
@@ -49,6 +51,8 @@ export default function SerpFetcher({
     if (checkIn) params.set("checkIn", checkIn);
     if (checkOut) params.set("checkOut", checkOut);
     if (guests) params.set("guests", guests);
+    if (lat != null) params.set("lat", String(lat));
+    if (lon != null) params.set("lon", String(lon));
     const ctrl = new AbortController();
     setState({ status: "loading", data: null });
 
@@ -67,7 +71,7 @@ export default function SerpFetcher({
       );
 
     return () => ctrl.abort();
-  }, [endpoint, query, checkIn, checkOut, guests]);
+  }, [endpoint, query, checkIn, checkOut, guests, lat, lon]);
 
   if (state.status === "loading") return <Skeleton />;
   if (state.status === "empty") return <Empty notice={state.data?.notice} />;

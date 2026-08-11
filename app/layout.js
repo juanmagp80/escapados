@@ -1,11 +1,25 @@
-import "./globals.css";
-import TopNav from "@/components/layout/TopNav";
 import ToastProvider from "@/components/common/ToastProvider";
+import TopNav from "@/components/layout/TopNav";
+import "./globals.css";
 
 export const metadata = {
   title: "Escapa2 — ¿Dónde nos escapamos?",
   description:
     "Encuentra destinos, alojamiento, transporte y planes para vuestra próxima escapada.",
+  openGraph: {
+    title: "Escapa2 — ¿Dónde nos escapamos?",
+    description:
+      "Encuentra destinos, alojamiento, transporte y planes para vuestra próxima escapada.",
+    type: "website",
+    locale: "es_ES",
+    siteName: "Escapa2",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Escapa2 — ¿Dónde nos escapamos?",
+    description:
+      "Encuentra destinos, alojamiento, transporte y planes para vuestra próxima escapada.",
+  },
 };
 
 export const viewport = {

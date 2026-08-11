@@ -1,8 +1,9 @@
-import Link from "next/link";
-import { runSearch } from "@/lib/search/runSearch";
-import { runMultiOriginSearch, splitOrigins } from "@/lib/search/runMultiOrigin";
 import DestinationCard from "@/components/destinations/DestinationCard";
+import SurpriseMode from "@/components/destinations/SurpriseMode";
+import { runMultiOriginSearch, splitOrigins } from "@/lib/search/runMultiOrigin";
+import { runSearch } from "@/lib/search/runSearch";
 import { formatEuro } from "@/lib/utils/format";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -196,11 +197,11 @@ export default async function BuscarPage({ searchParams }) {
                     {query.transport === "plane" && best.flight?.airline
                       ? `✈️ ${best.flight.airline}`
                       : best.distanceLabel && best.distanceLabel !== "—"
-                      ? `${best.distanceLabel} · `
-                      : ""}
+                        ? `${best.distanceLabel} · `
+                        : ""}
                     {query.transport === "car" &&
-                    best.durationLabel &&
-                    best.durationLabel !== "—"
+                      best.durationLabel &&
+                      best.durationLabel !== "—"
                       ? best.durationLabel
                       : ""}
                   </p>
@@ -243,6 +244,12 @@ export default async function BuscarPage({ searchParams }) {
               );
             })}
           </div>
+
+          <SurpriseMode
+            destinations={destinations}
+            origin={query.origin}
+            budget={query.budget}
+          />
         </>
       )}
     </main>

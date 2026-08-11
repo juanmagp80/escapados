@@ -1,21 +1,53 @@
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { getDestinationDetail } from "@/lib/destinations/detail";
-import { findCommunity } from "@/lib/destinations/communities";
-import { estimateTripCost } from "@/lib/destinations/costEstimate";
-import { getHotels } from "@/lib/serpapi/providers/hotels";
-import { withFallback } from "@/lib/utils/cache";
-import { formatEuro, formatKm, formatDuration, nightsBetween } from "@/lib/utils/format";
-import { describeWeatherCode } from "@/lib/weather/openMeteo";
-import SerpFetcher from "@/components/places/SerpFetcher";
-import SaveButtons from "@/components/destinations/SaveButtons";
 import ShareButton from "@/components/common/ShareButton";
+import ExpenseReport from "@/components/destinations/ExpenseReport";
+import PriceAlert from "@/components/destinations/PriceAlert";
+import PriceCalendar from "@/components/destinations/PriceCalendar";
+import RatingForm from "@/components/destinations/RatingForm";
+import SaveButtons from "@/components/destinations/SaveButtons";
+import BlaBlaCarSimulator from "@/components/fuel/BlaBlaCarSimulator";
+import EVChargersList from "@/components/fuel/EVChargersList";
+import GasStationsList from "@/components/fuel/GasStationsList";
+import TransportCompare from "@/components/fuel/TransportCompare";
 import Itinerary from "@/components/itinerary/Itinerary";
 import RouteMap from "@/components/maps/RouteMap";
-import GasStationsList from "@/components/fuel/GasStationsList";
-import BlaBlaCarSimulator from "@/components/fuel/BlaBlaCarSimulator";
+import SerpFetcher from "@/components/places/SerpFetcher";
+import RainPlanB from "@/components/weather/RainPlanB";
+import { findCommunity } from "@/lib/destinations/communities";
+import { estimateTripCost } from "@/lib/destinations/costEstimate";
+import { getDestinationDetail } from "@/lib/destinations/detail";
+import { estimateTolls } from "@/lib/routing/tolls";
+import { getHotels } from "@/lib/serpapi/providers/hotels";
+import { withFallback } from "@/lib/utils/cache";
+import { formatDuration, formatEuro, formatKm, nightsBetween } from "@/lib/utils/format";
+import { describeWeatherCode, tripRainyDays } from "@/lib/weather/openMeteo";
+import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params, searchParams }) {
+  const name = (searchParams?.destination || params.slug || "")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+  const title = `Escapada a ${name} — Escapa2`;
+  const description = `Planifica tu escapada a ${name}: transporte, alojamiento, restaurantes, atracciones e itinerario personalizado.`;
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      locale: "es_ES",
+      siteName: "Escapa2",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
 
 function Section({ icon, title, children }) {
   return (
@@ -96,7 +128,27 @@ export default async function DestinoPage({ params, searchParams }) {
     ? dailyForecast.filter((f) => f.date >= query.startDate && f.date <= query.endDate)
     : [];
 
+  const rainyTripDays = tripRainyDays(weather, query.startDate, query.endDate);
+
   const transportCost = carCost ? carCost.effective : detail.flight ? detail.flight.totalPrice : 0;
+  const tolls = route ? estimateTolls(route.distance / 1000) : 0;
+  const transportModes = [];
+  if (carCost) {
+    transportModes.push({
+      id: "car",
+      label: "🚗 Coche",
+      cost: carCost.effective + tolls,
+      duration: route ? formatDuration(route.duration) : null,
+    });
+  }
+  if (detail.flight) {
+    transportModes.push({
+      id: "plane",
+      label: "✈️ Avión",
+      cost: detail.flight.totalPrice,
+      duration: null,
+    });
+  }
 
   let hotels = [];
   if (query.startDate && query.endDate) {
@@ -210,6 +262,7 @@ export default async function DestinoPage({ params, searchParams }) {
                   </div>
                 </>
               )}
+              <RainPlanB rainyDays={rainyTripDays} />
             </Section>
           </div>
         )}
@@ -233,13 +286,14 @@ export default async function DestinoPage({ params, searchParams }) {
             {carCost && (
               <div className="mt-3 space-y-1 border-t border-stone-100 pt-3 text-sm">
                 <Row label="⛽ Combustible" value={formatEuro(carCost.fuel.cost)} />
-                <Row label="🛣️ Peajes" value="Consultar" />
+                <Row label="🛣️ Peajes (aprox.)" value={formatEuro(tolls)} />
                 <div className="flex justify-between border-t border-stone-100 pt-2 font-semibold">
                   <span>Coste efectivo</span>
-                  <span>{formatEuro(carCost.effective)}</span>
+                  <span>{formatEuro(carCost.effective + tolls)}</span>
                 </div>
               </div>
             )}
+            <TransportCompare modes={transportModes} distanceKm={route?.distance / 1000} />
           </Section>
         )}
 
@@ -326,6 +380,16 @@ export default async function DestinoPage({ params, searchParams }) {
                     </ul>
                   </div>
                 )}
+                <PriceCalendar
+                  options={detail.flightOptions.length > 0 ? detail.flightOptions : detail.flexibleOptions}
+                  selectedDate={query.startDate}
+                />
+                <PriceAlert
+                  from={query.origin}
+                  to={name}
+                  date={query.startDate}
+                  currentPrice={detail.flight.totalPrice}
+                />
               </div>
             ) : (
               <p className="text-sm text-stone-400">
@@ -354,6 +418,12 @@ export default async function DestinoPage({ params, searchParams }) {
               destLon={destination.lon}
               routeCoordinates={route.coordinates}
             />
+          </Section>
+        )}
+
+        {query.transport === "car" && (
+          <Section icon="⚡" title="Puntos de carga eléctrica">
+            <EVChargersList lat={destination.lat} lon={destination.lon} />
           </Section>
         )}
 
@@ -474,6 +544,8 @@ export default async function DestinoPage({ params, searchParams }) {
             lon={destination.lon}
             query={query}
           />
+          <RatingForm destination={name} />
+          <ExpenseReport destination={name} />
           <div className="mt-3 border-t border-stone-100 pt-3">
             <ShareButton
               url={`/destinos/${params.slug}?${new URLSearchParams(query).toString()}`}

@@ -1,10 +1,11 @@
-import Link from "next/link";
-import { getCurrentUser } from "@/lib/supabase/session";
-import { getSupabaseServer } from "@/lib/supabase/server";
 import DeleteButton from "@/components/common/DeleteButton";
 import DownloadICSButton from "@/components/common/DownloadICSButton";
-import { formatEuro, slugify } from "@/lib/utils/format";
+import PublishTripButton from "@/components/destinations/PublishTripButton";
+import { getSupabaseServer } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/session";
 import { buildTripICS } from "@/lib/trips/ics";
+import { formatEuro, slugify } from "@/lib/utils/format";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +109,7 @@ export default async function ViajesPage() {
                         })}
                         filename={`escapa2-${t.slug || "viaje"}.ics`}
                       />
+                      <PublishTripButton trip={t} />
                       <DeleteButton table="trips" id={t.id} />
                     </span>
                   </div>

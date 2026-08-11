@@ -1,11 +1,12 @@
-import Link from "next/link";
-import { getCurrentUser } from "@/lib/supabase/session";
 import LogoutButton from "@/components/auth/LogoutButton";
+import { getCurrentUser } from "@/lib/supabase/session";
+import Link from "next/link";
 
 const LINKS = [
   { href: "/", label: "Inicio" },
   { href: "/viajes", label: "Viajes" },
   { href: "/favoritos", label: "Favoritos" },
+  { href: "/comunidad", label: "Comunidad" },
 ];
 
 export default async function TopNav() {
@@ -28,7 +29,16 @@ export default async function TopNav() {
             </Link>
           ))}
           {user ? (
-            <LogoutButton />
+            <>
+              <Link
+                href="/perfil"
+                className="text-sm font-medium text-stone-600"
+                title="Tu perfil"
+              >
+                👤
+              </Link>
+              <LogoutButton />
+            </>
           ) : (
             <Link href="/login" className="btn-ghost text-sm">
               Entrar

@@ -12,6 +12,16 @@ export default function AuthForm({ mode = "login" }) {
   const [name, setName] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  if (emailSent) {
+    return (
+      <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        Casi está. Te hemos enviado un correo a{" "}
+        <strong>{email}</strong>. Confírmalo para poder entrar.
+      </p>
+    );
+  }
 
   if (!supabase) {
     return (
@@ -27,12 +37,20 @@ export default function AuthForm({ mode = "login" }) {
     setLoading(true);
     try {
       if (mode === "register") {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: { data: { name } },
+          options: {
+            data: { name },
+            emailRedirectTo: `${window.location.origin}/auth/confirm?type=signup`,
+          },
         });
         if (error) throw error;
+        if (data.session) {
+          router.push("/viajes");
+        } else {
+          setEmailSent(true);
+        }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email,

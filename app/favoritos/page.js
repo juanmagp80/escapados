@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/supabase/session";
 import { getSupabaseServer } from "@/lib/supabase/server";
+import DeleteButton from "@/components/common/DeleteButton";
+import { slugify } from "@/lib/utils/format";
 
 export const dynamic = "force-dynamic";
 
@@ -39,15 +41,27 @@ export default async function FavoritosPage() {
       {dests && dests.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {dests.map((d) => (
-            <article key={d.id} className="card overflow-hidden">
-              <div className="h-24 bg-gradient-to-br from-brand-300 to-brand-500" />
-              <div className="p-4">
-                <h2 className="text-lg font-bold text-ink">
-                  {d.destination}
-                </h2>
-                {d.country && (
-                  <p className="text-sm text-stone-500">{d.country}</p>
-                )}
+            <article key={d.id} className="card relative overflow-hidden">
+              <Link
+                href={`/destinos/${slugify(d.destination)}`}
+                aria-label={`Ver ${d.destination}`}
+                className="absolute inset-0 z-0"
+              />
+              <div className="relative z-10 h-24 bg-gradient-to-br from-brand-300 to-brand-500" />
+              <div className="relative z-10 flex items-center justify-between p-4">
+                <div>
+                  <h2 className="pointer-events-none text-lg font-bold text-ink">
+                    {d.destination}
+                  </h2>
+                  {d.country && (
+                    <p className="pointer-events-none text-sm text-stone-500">
+                      {d.country}
+                    </p>
+                  )}
+                </div>
+                <span className="pointer-events-auto">
+                  <DeleteButton table="saved_destinations" id={d.id} />
+                </span>
               </div>
             </article>
           ))}

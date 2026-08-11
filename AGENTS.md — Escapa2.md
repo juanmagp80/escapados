@@ -194,9 +194,9 @@ La meteorología debe utilizarse también como contexto opcional para el itinera
 
 ---
 
-### OpenStreetMap / Nominatim
+### OpenStreetMap / Nominatim / Geoapify
 
-Utilizar OpenStreetMap/Nominatim para geocodificación cuando sea adecuado.
+Usar `lib/maps/geocoder.js` para geocodificación (Geoapify si `GEOAPIFY_API_KEY` está configurada, con fallback a Nominatim/OpenStreetMap).
 
 Permitir convertir:
 
@@ -332,43 +332,28 @@ No inventar precios.
 
 # 7. BlaBlaCar / compartir coche
 
-La aplicación debe incluir una estimación opcional de ingresos si el usuario decide llevar pasajeros.
+La aplicación muestra ofertas **reales** de BlaBlaCar para el trayecto (API oficial `public-api.blablacar.com/api/v3/trips`) y calcula el coste efectivo del coche descontando los ingresos a precio real.
 
 IMPORTANTE:
 
-No asumir que BlaBlaCar dispone de una API pública gratuita para consultar automáticamente trayectos y precios.
+- Se usa la API oficial de BlaBlaCar (`lib/blablacar/client.js`) que requiere `BLABLACAR_API_KEY` (solicitarla en el formulario "Developer BlaBlaCar API"). Consulta ida y vuelta por coordenadas y fecha.
+- Si no hay clave o no hay ofertas para el trayecto, se muestra el simulador manual como respaldo (el usuario introduce precio por pasajero y plazas).
+- El adapter vive en `lib/blablacar/` y el endpoint en `app/api/blablacar/route.js`.
 
-Por tanto, inicialmente implementar un simulador.
-
-El usuario podrá introducir:
-
-```text
-Precio por pasajero: 20 €
-Plazas disponibles: 3
-```
-
-Y Escapa2 calculará:
+Cálculo con precio real:
 
 ```text
-Ingresos potenciales = precio * pasajeros
-```
+Combustible (ida y vuelta): 42 €
+Precio real BlaBlaCar ida (más barato): 8 €
+Precio real BlaBlaCar vuelta (más barato): 7 €
+Ingresos = (8 + 7) * plazas libres del coche
 
-Ejemplo:
-
-```text
-Combustible: 42 €
-Peajes: 0 €
-Ingresos estimados BlaBlaCar: 40 €
-
-Coste efectivo:
-42 - 40 = 2 €
+Coste efectivo = max(0, 42 - ingresos)
 ```
 
 Mostrar claramente:
 
-> Estimación de ingresos por compartir coche. No representa una reserva real en BlaBlaCar.
-
-Si en el futuro existe una API oficial disponible, crear un adapter independiente para integrarla.
+> Precios reales que se están ofertando ahora en BlaBlaCar. No representa una reserva real.
 
 ---
 

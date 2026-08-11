@@ -20,6 +20,12 @@ export default function LoginPage() {
             Regístrate
           </Link>
         </p>
+        <p className="mt-2 text-center text-sm text-stone-500">
+          ¿Olvidaste tu contraseña?{" "}
+          <Link href="/recuperar" className="font-semibold text-brand-600">
+            Recupérala
+          </Link>
+        </p>
       </div>
       <p className="mt-4 text-center text-xs text-stone-400">
         Puedes buscar escapadas sin registrarte.

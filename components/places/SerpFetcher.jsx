@@ -1,24 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import HotelList from "@/components/hotels/HotelList";
+import SectionLoader from "@/components/loading/SectionLoader";
 import PlaceList from "@/components/places/PlaceList";
-
-function Skeleton({ lines = 2 }) {
-  return (
-    <div className="animate-pulse space-y-3">
-      {Array.from({ length: lines }).map((_, i) => (
-        <div key={i} className="flex gap-3">
-          <div className="h-16 w-16 shrink-0 rounded-xl bg-stone-200" />
-          <div className="flex-1 space-y-2 py-1">
-            <div className="h-3 w-2/3 rounded bg-stone-200" />
-            <div className="h-3 w-1/3 rounded bg-stone-200" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
+import PoiMap from "@/components/maps/PoiMap";
+import { useEffect, useState } from "react";
 
 function Empty({ notice }) {
   return (
@@ -38,6 +24,7 @@ export default function SerpFetcher({
   guests,
   lat,
   lon,
+  maxPrice,
 }) {
   const [state, setState] = useState({ status: "loading", data: null });
 
@@ -53,31 +40,63 @@ export default function SerpFetcher({
     if (guests) params.set("guests", guests);
     if (lat != null) params.set("lat", String(lat));
     if (lon != null) params.set("lon", String(lon));
+    if (maxPrice) params.set("maxPrice", String(maxPrice));
     const ctrl = new AbortController();
+    const startTime = Date.now();
     setState({ status: "loading", data: null });
 
     fetch(`/api/${endpoint}?${params.toString()}`, { signal: ctrl.signal })
       .then((r) => r.json())
       .then((data) => {
-        const items = data.hotels || data.items || [];
-        if (!items.length) setState({ status: "empty", data });
-        else setState({ status: "done", data: { ...data, items } });
+        const elapsed = Date.now() - startTime;
+        const minDelay = 4000;
+        const remaining = Math.max(0, minDelay - elapsed);
+
+        setTimeout(() => {
+          const items = data.hotels || data.items || [];
+          if (!items.length) setState({ status: "empty", data });
+          else setState({ status: "done", data: { ...data, items } });
+        }, remaining);
       })
-      .catch(() =>
-        setState({
-          status: "empty",
-          data: { notice: "No hemos podido obtener los datos." },
-        })
-      );
+      .catch((err) => {
+        const elapsed = Date.now() - startTime;
+        const minDelay = 4000;
+        const remaining = Math.max(0, minDelay - elapsed);
+
+        setTimeout(() => {
+          setState({
+            status: "empty",
+            data: { notice: "No hemos podido obtener los datos." },
+          });
+        }, remaining);
+      });
 
     return () => ctrl.abort();
-  }, [endpoint, query, checkIn, checkOut, guests, lat, lon]);
+  }, [endpoint, query, checkIn, checkOut, guests, lat, lon, maxPrice]);
 
-  if (state.status === "loading") return <Skeleton />;
+  if (state.status === "loading")
+    return (
+      <SectionLoader
+        label={
+          kind === "hotels"
+            ? "Buscando alojamientos…"
+            : "Buscando lugares…"
+        }
+      />
+    );
   if (state.status === "empty") return <Empty notice={state.data?.notice} />;
 
   const items = state.data.items;
   if (kind === "hotels")
-    return <HotelList items={items} data={state.data} />;
+    return (
+      <>
+        <HotelList items={items} data={state.data} />
+        {lat != null && lon != null && (
+          <div className="mt-3">
+            <PoiMap center={{ lat: Number(lat), lon: Number(lon) }} points={items} />
+          </div>
+        )}
+      </>
+    );
   return <PlaceList items={items} data={state.data} icon={icon} />;
 }

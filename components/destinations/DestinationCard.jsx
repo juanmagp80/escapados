@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { formatEuro } from "@/lib/utils/format";
 
-export default function DestinationCard({ dest, query }) {
+export default function DestinationCard({ dest, query, multiOrigin = false }) {
   const href = `/destinos/${dest.slug}?${new URLSearchParams(query).toString()}`;
   return (
     <Link href={href} className="block">
@@ -32,6 +32,9 @@ export default function DestinationCard({ dest, query }) {
 
         <div className="space-y-2 p-4">
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-stone-600">
+            {multiOrigin && query.origin && (
+              <span className="font-medium text-brand-600">📍 Desde {query.origin}</span>
+            )}
             {dest.transportLabel && <span>{dest.transportLabel}</span>}
             {dest.distanceLabel && dest.distanceLabel !== "—" && (
               <span>🚗 {dest.distanceLabel}</span>
@@ -41,6 +44,19 @@ export default function DestinationCard({ dest, query }) {
             )}
             {dest.weatherLabel && <span>☀️ {dest.weatherLabel}</span>}
           </div>
+
+          {dest.altOrigins && dest.altOrigins.length > 0 && (
+            <div className="rounded-lg bg-stone-50 p-2 text-xs text-stone-500">
+              {dest.altOrigins.map((alt) => (
+                <div key={alt.origin} className="flex justify-between">
+                  <span>🔄 También desde {alt.origin}</span>
+                  <span className="font-medium text-ink">
+                    {alt.estimatedCost != null ? formatEuro(alt.estimatedCost) : "—"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-end justify-between border-t border-stone-100 pt-3">
             <div>

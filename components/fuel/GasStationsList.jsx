@@ -1,25 +1,18 @@
 "use client";
 
+import SectionLoader from "@/components/loading/SectionLoader";
 import { useEffect, useState } from "react";
-
-function Skeleton() {
-  return (
-    <div className="animate-pulse space-y-2">
-      {[0, 1, 2].map((i) => (
-        <div key={i} className="flex gap-3 p-3 rounded-xl bg-stone-50">
-          <div className="h-12 w-12 rounded-xl bg-stone-200" />
-          <div className="flex-1 space-y-2">
-            <div className="h-4 w-3/4 rounded bg-stone-200" />
-            <div className="h-3 w-1/2 rounded bg-stone-200" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function price(value) {
   return typeof value === "number" && value > 0 ? `${value.toFixed(3)} €/L` : "—";
+}
+
+// Etiqueta de posición a lo largo de la ruta según el % de avance.
+function routePositionLabel(pct) {
+  if (pct == null || !Number.isFinite(pct)) return null;
+  if (pct < 20) return { label: "Inicio de ruta", dot: "bg-emerald-500" };
+  if (pct <= 80) return { label: "Mitad de ruta", dot: "bg-amber-500" };
+  return { label: "Final de ruta", dot: "bg-sky-500" };
 }
 
 // Acota la polilínea a un máximo de puntos para no superar el límite de URL.
@@ -50,6 +43,23 @@ function GasStationCard({ station }) {
           )}
           {station.gasoline != null && (
             <span>Gasolina: <span className="font-medium text-ink">{price(station.gasoline)}</span></span>
+          )}
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-stone-500">
+          {(() => {
+            const pos = routePositionLabel(station.routePct);
+            if (pos) {
+              return (
+                <span className="inline-flex items-center gap-1">
+                  <span className={`h-2 w-2 rounded-full ${pos.dot}`} />
+                  <span className="font-medium text-ink">{pos.label}</span>
+                </span>
+              );
+            }
+            return null;
+          })()}
+          {(station.kmAlongRoute != null && station.routeTotalKm != null) && (
+            <span>km {Math.round(station.kmAlongRoute)} de {station.routeTotalKm}</span>
           )}
           {station.distanceKm != null && (
             <span>· a {station.distanceKm} km de la ruta</span>
@@ -108,23 +118,39 @@ export default function GasStationsList({
     }
 
     const ctrl = new AbortController();
+    const startTime = Date.now();
     setState({ status: "loading", stations: [] });
 
     fetch(`/api/gas-stations?${params.toString()}&count=5`, { signal: ctrl.signal })
       .then((r) => r.json())
       .then((data) => {
-        if (data.stations && data.stations.length > 0) {
-          setState({ status: "done", stations: data.stations });
-        } else {
-          setState({ status: "empty", stations: [] });
-        }
+        const elapsed = Date.now() - startTime;
+        const minDelay = 4000;
+        const remaining = Math.max(0, minDelay - elapsed);
+
+        setTimeout(() => {
+          if (data.stations && data.stations.length > 0) {
+            setState({ status: "done", stations: data.stations });
+          } else {
+            setState({ status: "empty", stations: [] });
+          }
+        }, remaining);
       })
-      .catch(() => setState({ status: "empty", stations: [] }));
+      .catch((err) => {
+        const elapsed = Date.now() - startTime;
+        const minDelay = 4000;
+        const remaining = Math.max(0, minDelay - elapsed);
+
+        setTimeout(() => {
+          setState({ status: "empty", stations: [] });
+        }, remaining);
+      });
 
     return () => ctrl.abort();
   }, [originLat, originLon, destLat, destLon, routeCoordinates]);
 
-  if (state.status === "loading") return <Skeleton />;
+  if (state.status === "loading")
+    return <SectionLoader label="Buscando gasolineras en la ruta…" />;
   if (state.status === "empty" || state.stations.length === 0)
     return (
       <p className="text-sm text-stone-400 text-center py-4">

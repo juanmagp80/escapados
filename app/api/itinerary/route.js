@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
 import { buildItinerary } from "@/lib/ai/itineraryProvider";
 import { withFallback } from "@/lib/utils/cache";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
@@ -11,18 +11,38 @@ export async function GET(request) {
     return NextResponse.json({ error: "Falta el destino" }, { status: 400 });
 
   try {
-    const itinerary = await buildItinerary({
-      destination,
-      startDate: searchParams.get("startDate") || undefined,
-      endDate: searchParams.get("endDate") || undefined,
-      travelers: searchParams.get("travelers") || 2,
-      budget: searchParams.get("budget") || undefined,
-    });
+    const itinerary = await withFallback(
+      () =>
+        buildItinerary({
+          destination,
+          startDate: searchParams.get("startDate") || undefined,
+          endDate: searchParams.get("endDate") || undefined,
+          travelers: searchParams.get("travelers") || 2,
+          budget: searchParams.get("budget") || undefined,
+        }),
+      { days: [], summary: "", notes: "" }
+    );
+
+    if (!itinerary.days || itinerary.days.length === 0) {
+      return NextResponse.json(
+        {
+          days: [],
+          summary: "",
+          notes: "No hemos podido generar el itinerario ahora mismo.",
+        },
+        { status: 200 }
+      );
+    }
+
     return NextResponse.json(itinerary);
   } catch (err) {
     return NextResponse.json(
-      { error: "No hemos podido generar el itinerario ahora mismo." },
-      { status: 502 }
+      {
+        days: [],
+        summary: "",
+        notes: "No hemos podido generar el itinerario ahora mismo.",
+      },
+      { status: 200 }
     );
   }
 }

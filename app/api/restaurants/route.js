@@ -1,26 +1,30 @@
-import { NextResponse } from "next/server";
+import { generatePlaces } from "@/lib/ai/gemini";
 import { getPlaces } from "@/lib/serpapi/providers/places";
 import { withFallback } from "@/lib/utils/cache";
+import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const q = searchParams.get("q");
-  const category = searchParams.get("category") || "restaurants";
   if (!q)
     return NextResponse.json({ error: "Falta el destino" }, { status: 400 });
 
   const result = await withFallback(
-    () => getPlaces({ q, category }),
-    { items: [], source: "Google Maps" }
+    () => generatePlaces({ q, category: "restaurants" }),
+    { items: [], source: "fallback" }
   );
 
   if (!result.items || result.items.length === 0) {
+    const fallback = await getPlaces({ q, category: "restaurants" });
+    if (fallback.items && fallback.items.length > 0) {
+      return NextResponse.json(fallback);
+    }
     return NextResponse.json({
       items: [],
-      source: "Google Maps",
-      notice: "No hemos podido obtener resultados ahora mismo.",
+      source: "fallback",
+      notice: "No hemos podido obtener recomendaciones ahora mismo.",
     });
   }
   return NextResponse.json(result);

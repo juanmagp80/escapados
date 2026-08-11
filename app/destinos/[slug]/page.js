@@ -1,12 +1,15 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getDestinationDetail } from "@/lib/destinations/detail";
+import { findCommunity } from "@/lib/destinations/communities";
 import { estimateTripCost } from "@/lib/destinations/costEstimate";
-import { getHotelsFromGoogle } from "@/lib/serpapi/providers/hotels";
+import { getHotels } from "@/lib/serpapi/providers/hotels";
 import { withFallback } from "@/lib/utils/cache";
 import { formatEuro, formatKm, formatDuration, nightsBetween } from "@/lib/utils/format";
 import { describeWeatherCode } from "@/lib/weather/openMeteo";
 import SerpFetcher from "@/components/places/SerpFetcher";
 import SaveButtons from "@/components/destinations/SaveButtons";
+import ShareButton from "@/components/common/ShareButton";
 import Itinerary from "@/components/itinerary/Itinerary";
 import RouteMap from "@/components/maps/RouteMap";
 import GasStationsList from "@/components/fuel/GasStationsList";
@@ -26,17 +29,47 @@ function Section({ icon, title, children }) {
   );
 }
 
+function dayLabel(dateStr) {
+  const d = new Date(dateStr + "T12:00:00");
+  const label = d.toLocaleDateString("es-ES", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1).replace(".", "");
+}
+
 export default async function DestinoPage({ params, searchParams }) {
+  const community = findCommunity(params.slug);
+  if (community) {
+    const communityQuery = new URLSearchParams();
+    for (const [k, v] of Object.entries(searchParams || {})) {
+      if (v) communityQuery.set(k, v);
+    }
+    if (!communityQuery.get("destination")) {
+      communityQuery.set("destination", community.name);
+    }
+    redirect(`/comunidad/${community.slug}?${communityQuery.toString()}`);
+  }
+
   const query = {
     origin: searchParams.origin || "",
+    destination: searchParams.destination || "",
     startDate: searchParams.startDate || "",
     endDate: searchParams.endDate || "",
     travelers: Number(searchParams.travelers) || 2,
     transport: searchParams.transport || "car",
     budget: searchParams.budget || "",
+    maxPrice: searchParams.maxPrice || "",
+    flexible: searchParams.flexible === "1",
+    wholeMonth: searchParams.wholeMonth === "1",
   };
 
-  const detail = await getDestinationDetail({ slug: params.slug, ...query });
+  const detail = await getDestinationDetail({
+    slug: params.slug,
+    destinationName: query.destination,
+    ...query,
+  });
   if (!detail) {
     return (
       <main className="container-narrow text-center">
@@ -50,17 +83,35 @@ export default async function DestinoPage({ params, searchParams }) {
   const nights = nightsBetween(query.startDate, query.endDate);
   const weatherNow = weather?.current;
 
+  const dailyForecast = (weather?.daily?.time || []).map((t, i) => ({
+    date: t,
+    max: weather.daily.temperature_2m_max?.[i],
+    min: weather.daily.temperature_2m_min?.[i],
+    precip: weather.daily.precipitation_probability_max?.[i],
+    code: weather.daily.weather_code?.[i],
+  }));
+
+  // Solo los días que coinciden con las fechas del viaje.
+  const tripForecast = (query.startDate && query.endDate)
+    ? dailyForecast.filter((f) => f.date >= query.startDate && f.date <= query.endDate)
+    : [];
+
   const transportCost = carCost ? carCost.effective : detail.flight ? detail.flight.totalPrice : 0;
 
   let hotels = [];
   if (query.startDate && query.endDate) {
     const result = await withFallback(
       () =>
-        getHotelsFromGoogle({
+        getHotels({
           q: name,
           checkIn: query.startDate,
           checkOut: query.endDate,
           guests: query.travelers,
+          lat: destination.lat,
+          lon: destination.lon,
+          maxPricePerNight: query.maxPrice
+            ? Number(query.maxPrice)
+            : undefined,
         }),
       { hotels: [] }
     );
@@ -98,7 +149,7 @@ export default async function DestinoPage({ params, searchParams }) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-black/10">
           <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
             <Link
-              href={`/buscar?${new URLSearchParams(query).toString()}`}
+              href={query.destination ? "/" : `/buscar?${new URLSearchParams(query).toString()}`}
               className="rounded-full bg-white/90 px-3 py-1.5 text-sm font-medium text-stone-700"
             >
               ← Volver
@@ -136,6 +187,29 @@ export default async function DestinoPage({ params, searchParams }) {
                   <p>💨 Viento: {Math.round(weatherNow.wind_speed_10m)} km/h</p>
                 </div>
               </div>
+              {tripForecast.length > 0 && (
+                <>
+                  <p className="mt-4 text-xs font-medium uppercase tracking-wide text-stone-400">
+                    Previsión para tus fechas
+                  </p>
+                  <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {tripForecast.map((f) => (
+                      <div key={f.date} className="rounded-xl bg-brand-50 p-2 text-center">
+                        <p className="text-xs font-medium text-stone-500">
+                          {dayLabel(f.date)}
+                        </p>
+                        <p className="text-sm font-bold text-ink">
+                          {Math.round(f.max)}º / {Math.round(f.min)}º
+                        </p>
+                        <p className="text-xs text-stone-500">
+                          {describeWeatherCode(f.code).emoji}
+                          {f.precip != null ? ` ${Math.round(f.precip)}% lluvia` : ""}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </Section>
           </div>
         )}
@@ -188,12 +262,70 @@ export default async function DestinoPage({ params, searchParams }) {
                     rel="noopener noreferrer"
                     className="mt-2 inline-block font-medium text-brand-600"
                   >
-                    Ver en Google Flights →
+                    Ver en {detail.flight.source === "Ryanair" ? "Ryanair" : "Google Flights"} →
                   </a>
                 )}
                 <p className="pt-1 text-xs text-stone-400">
-                  Fuente: Google Flights
+                  Fuente: {detail.flight.source || "Google Flights"}
                 </p>
+                {detail.flightOptions.length > 0 && (
+                  <div className="mt-3 border-t border-stone-100 pt-3">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-400">
+                      Opciones baratas del mes
+                    </p>
+                    <ul className="space-y-1.5">
+                      {detail.flightOptions.map((opt) => (
+                        <li key={`${opt.outbound}-${opt.returnDate}`}>
+                          <a
+                            href={`/destinos/${params.slug}?${new URLSearchParams({
+                              ...query,
+                              startDate: opt.outbound,
+                              endDate: opt.returnDate,
+                            }).toString()}`}
+                            className="flex justify-between rounded-lg px-2 py-1 text-sm transition hover:bg-brand-50"
+                          >
+                            <span className="text-stone-600">
+                              {dayLabel(opt.outbound)} → {dayLabel(opt.returnDate)}{" "}
+                              <span className="text-stone-400">({opt.nights} noches)</span>
+                            </span>
+                            <span className="font-semibold text-ink">
+                              {formatEuro(opt.totalPrice)}
+                            </span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {detail.flexibleOptions.length > 0 && (
+                  <div className="mt-3 border-t border-stone-100 pt-3">
+                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-400">
+                      Las 5 fechas más baratas (±2 días)
+                    </p>
+                    <ul className="space-y-1.5">
+                      {detail.flexibleOptions.map((opt) => (
+                        <li key={`${opt.outbound}-${opt.returnDate}`}>
+                          <a
+                            href={`/destinos/${params.slug}?${new URLSearchParams({
+                              ...query,
+                              startDate: opt.outbound,
+                              endDate: opt.returnDate,
+                            }).toString()}`}
+                            className="flex justify-between rounded-lg px-2 py-1 text-sm transition hover:bg-brand-50"
+                          >
+                            <span className="text-stone-600">
+                              {dayLabel(opt.outbound)} → {dayLabel(opt.returnDate)}{" "}
+                              <span className="text-stone-400">({opt.nights} noches)</span>
+                            </span>
+                            <span className="font-semibold text-ink">
+                              {formatEuro(opt.totalPrice)}
+                            </span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-sm text-stone-400">
@@ -226,8 +358,17 @@ export default async function DestinoPage({ params, searchParams }) {
         )}
 
         {query.transport === "car" && carCost && (
-          <Section icon="🤝" title="Compartir coche (simulación)">
-            <BlaBlaCarSimulator carCost={carCost} travelers={query.travelers} />
+          <Section icon="🤝" title="Compartir coche (BlaBlaCar)">
+            <BlaBlaCarSimulator
+              carCost={carCost}
+              travelers={query.travelers}
+              originLat={detail.origin?.lat}
+              originLon={detail.origin?.lon}
+              destLat={destination.lat}
+              destLon={destination.lon}
+              startDate={query.startDate}
+              endDate={query.endDate}
+            />
           </Section>
         )}
 
@@ -242,12 +383,13 @@ export default async function DestinoPage({ params, searchParams }) {
             guests={query.travelers}
             lat={destination?.lat}
             lon={destination?.lon}
+            maxPrice={query.maxPrice}
           />
           {query.startDate && (
             <p className="pt-2 text-xs text-stone-400">
               {query.startDate} → {query.endDate} · {query.travelers} personas.
-              Si no aparecen precios, puede que Google Hotels esté sin cuota y
-              mostramos alojamientos del mapa (sin precio).
+              Si algún alojamiento no muestra precio, es una referencia del
+              lugar sin tarifa disponible para estas fechas.
             </p>
           )}
         </Section>
@@ -270,7 +412,7 @@ export default async function DestinoPage({ params, searchParams }) {
           />
         </Section>
 
-        <Section icon="🤖" title="Itinerario personalizado">
+        <Section icon="🗓️" title="Itinerario personalizado">
           <Itinerary destination={name} query={query} />
         </Section>
 
@@ -318,7 +460,7 @@ export default async function DestinoPage({ params, searchParams }) {
 
           <p className="mt-3 text-xs text-white/70">
             {costEstimate.hotelCostReal
-              ? "El alojamiento usa el precio más barato disponible con disponibilidad real para tus fechas (Google Hotels)."
+              ? "El alojamiento usa el precio más barato disponible con disponibilidad real para tus fechas."
               : "No encontramos disponibilidad de alojamiento para estas fechas; el alojamiento mostrado es una estimación orientativa."}{" "}
             El transporte se calcula con la distancia real de la ruta. Comida y
             actividades son extras orientativos, no incluidos en el total.
@@ -332,6 +474,12 @@ export default async function DestinoPage({ params, searchParams }) {
             lon={destination.lon}
             query={query}
           />
+          <div className="mt-3 border-t border-stone-100 pt-3">
+            <ShareButton
+              url={`/destinos/${params.slug}?${new URLSearchParams(query).toString()}`}
+              title={`Escapada a ${name}`}
+            />
+          </div>
           <p className="mt-2 text-center text-xs text-stone-400">
             Inicia sesión para guardar tus escapadas y destinos.
           </p>

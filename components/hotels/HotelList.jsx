@@ -1,13 +1,22 @@
 import { formatEuro } from "@/lib/utils/format";
 
-function HotelCard({ hotel }) {
+function HotelCard({ hotel, cheapest }) {
   return (
     <a
       href={hotel.link || "#"}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex gap-3 rounded-2xl border border-stone-100 p-3 transition active:scale-[0.99]"
+      className={`relative flex gap-3 rounded-2xl border p-3 transition active:scale-[0.99] ${
+        cheapest
+          ? "border-brand-300 bg-brand-50"
+          : "border-stone-100 bg-white"
+      }`}
     >
+      {cheapest && (
+        <span className="absolute -top-2 left-3 rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+          Más barato
+        </span>
+      )}
       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-brand-100">
         {hotel.image ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -52,13 +61,28 @@ function HotelCard({ hotel }) {
 }
 
 export default function HotelList({ items, data }) {
+  const showNoPricing =
+    data?.source === "fallback" && items.some((h) => !h.pricePerNight);
+  const firstPricedIndex = items.findIndex((h) => h.pricePerNight != null);
   return (
     <div className="space-y-2">
+      {data?.cheapestPrice != null && (
+        <p className="text-sm font-medium text-stone-600">
+          💰 Desde{" "}
+          <span className="font-bold text-brand-700">
+            {formatEuro(data.cheapestPrice)}
+          </span>{" "}
+          /noche
+        </p>
+      )}
       {items.map((h, i) => (
-        <HotelCard key={i} hotel={h} />
+        <HotelCard key={i} hotel={h} cheapest={i === firstPricedIndex} />
       ))}
-      {data?.source && (
-        <p className="pt-1 text-xs text-stone-400">Fuente: {data.source}</p>
+      {showNoPricing && (
+        <p className="pt-1 text-xs text-stone-400">
+          Los alojamientos aparecen sin precio porque las APIs de precios están
+          sin cuota o sin clave válida. Están sacados del mapa (OpenStreetMap).
+        </p>
       )}
     </div>
   );

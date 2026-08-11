@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { formatEuro } from "@/lib/utils/format";
+import { useToast } from "@/components/common/ToastProvider";
 
 const COLUMNS = [
   { key: "name", label: "Destino", sortable: false, width: "w-32" },
@@ -40,6 +41,7 @@ function BreakdownRow({ label, value, icon }) {
 
 export default function Comparator({ destinations, query }) {
   const router = useRouter();
+  const notify = useToast();
   const [sortKey, setSortKey] = useState("estimatedCost");
   const [dir, setDir] = useState(1);
   const [showBreakdown, setShowBreakdown] = useState({});
@@ -96,6 +98,26 @@ export default function Comparator({ destinations, query }) {
     }
   }
 
+  // Valores planos para el CSV: numéricos sin formato, texto entre comillas.
+  function csvCell(dest, key) {
+    switch (key) {
+      case "name":
+        return `"${dest.name}"`;
+      case "estimatedCost":
+      case "hotelCost":
+      case "transportCost":
+      case "foodCost":
+      case "activitiesCost":
+        return dest[key] != null ? String(dest[key]).replace(".", ",") : "";
+      case "distanceKm":
+        return dest.distanceKm != null ? String(dest.distanceKm) : "";
+      case "score":
+        return dest.score != null ? String(dest.score).replace(".", ",") : "";
+      default:
+        return "";
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -113,14 +135,13 @@ export default function Comparator({ destinations, query }) {
         </button>
         <button
           onClick={() => {
-            const csv = [
-              COLUMNS.map(c => c.label).join(","),
-              ...sorted.map(d => COLUMNS.map(c => {
-                const val = cell(d, c.key);
-                return typeof val === "object" ? "" : String(val).replace(/[€,]/g, "");
-              }).join(","))
-            ].join("\n");
-            const blob = new Blob([csv], { type: "text/csv" });
+            const BOM = "\uFEFF";
+            const rows = [
+              COLUMNS.map(c => c.label).join(";"),
+              ...sorted.map(d => COLUMNS.map(c => csvCell(d, c.key)).join(";"))
+            ];
+            const csv = BOM + rows.join("\n");
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url; a.download = `comparacion-${query.origin}-${query.startDate}.csv`;
@@ -133,7 +154,7 @@ export default function Comparator({ destinations, query }) {
         <button
           onClick={() => {
             navigator.clipboard.writeText(window.location.href);
-            alert("Enlace copiado al portapapeles");
+            notify("Enlace copiado ✓");
           }}
           className="btn-ghost text-xs"
         >

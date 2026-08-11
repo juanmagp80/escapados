@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { geocode } from "@/lib/maps/nominatim";
+import { geocode } from "@/lib/maps/geocoder";
 import { getRoute } from "@/lib/routing/osrm";
 import { withFallback } from "@/lib/utils/cache";
 

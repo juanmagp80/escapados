@@ -1,5 +1,6 @@
 import "./globals.css";
 import TopNav from "@/components/layout/TopNav";
+import ToastProvider from "@/components/common/ToastProvider";
 
 export const metadata = {
   title: "Escapa2 — ¿Dónde nos escapamos?",
@@ -23,19 +24,21 @@ export default function RootLayout({ children }) {
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="min-h-screen bg-cream text-ink antialiased">
-        <TopNav />
-        {children}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js').catch(() => {});
-                });
-              }
-            `,
-          }}
-        />
+        <ToastProvider>
+          <TopNav />
+          {children}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                if ('serviceWorker' in navigator) {
+                  window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js').catch(() => {});
+                  });
+                }
+              `,
+            }}
+          />
+        </ToastProvider>
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { runSearch } from "@/lib/search/runSearch";
+import { runMultiOriginSearch, splitOrigins } from "@/lib/search/runMultiOrigin";
 import DestinationCard from "@/components/destinations/DestinationCard";
 import { formatEuro } from "@/lib/utils/format";
 
@@ -23,9 +24,11 @@ export default async function BuscarPage({ searchParams }) {
     travelers: searchParams.travelers || "2",
     transport: searchParams.transport || "car",
     budget: searchParams.budget || "",
+    maxPrice: searchParams.maxPrice || "",
     region: searchParams.region || "",
     maxKm: searchParams.maxKm || "",
     wholeMonth: searchParams.wholeMonth === "1",
+    flexible: searchParams.flexible === "1",
   };
 
   if (!query.origin) {
@@ -39,7 +42,11 @@ export default async function BuscarPage({ searchParams }) {
     );
   }
 
-  const result = await runSearch(query);
+  const origins = splitOrigins(query.origin);
+  const result =
+    origins.length > 1
+      ? await runMultiOriginSearch({ ...query, origins })
+      : await runSearch(query);
 
   if (result.error) {
     return (
@@ -54,7 +61,7 @@ export default async function BuscarPage({ searchParams }) {
     );
   }
 
-  const { destinations, best } = result;
+  const { destinations, best, failedOrigins = [] } = result;
 
   // Todas las opciones de vuelo del mes, ordenadas de menor a mayor precio.
   const monthOptions = [];
@@ -74,11 +81,16 @@ export default async function BuscarPage({ searchParams }) {
           link: opt.link,
           distanceKm: d.distanceKm,
           estimatedCost: d.estimatedCost,
+          originRef: opt.originRef || d.originRef || query.origin,
         });
       }
     }
     monthOptions.sort((a, b) => a.price - b.price);
   }
+
+  const originLabel = origins.length > 1
+    ? origins.join(" o ")
+    : query.origin;
 
   return (
     <main className="container-app">
@@ -87,14 +99,22 @@ export default async function BuscarPage({ searchParams }) {
           ← Volver
         </Link>
         <h1 className="mt-2 text-2xl font-bold text-ink">
-          Escapadas desde {query.origin}
+          Escapadas desde {originLabel}
         </h1>
         <p className="text-sm text-stone-500">
           {query.wholeMonth
             ? `Vuelos de ${new Date(query.startDate).toLocaleDateString("es-ES", { month: "long", year: "numeric" })} · ${query.travelers} viajeros · ✈️ Avión`
-            : `${query.startDate} → ${query.endDate} · ${query.travelers} viajeros · ${query.transport === "car" ? "🚗 Coche" : "✈️ Avión"}`}
+            : `${query.startDate} → ${query.endDate} · ${query.travelers} viajeros · ${query.transport === "car" ? "🚗 Coche" : "✈️ Avión"}${query.flexible ? " · fechas flexibles" : ""}`}
         </p>
       </header>
+
+      {failedOrigins.length > 0 && (
+        <aside className="mb-5 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          No hemos podido localizar{" "}
+          {failedOrigins.map((o) => `“${o}”`).join(", ")}. Mostramos las
+          escapadas desde {origins.filter((o) => !failedOrigins.includes(o)).join(" y ")}.
+        </aside>
+      )}
 
       {query.wholeMonth ? (
         <section>
@@ -104,7 +124,7 @@ export default async function BuscarPage({ searchParams }) {
           <div className="space-y-3">
             {monthOptions.map((opt) => {
               const detailQuery = new URLSearchParams({
-                origin: query.origin,
+                origin: opt.originRef,
                 startDate: opt.outbound,
                 endDate: opt.returnDate,
                 travelers: query.travelers,
@@ -112,9 +132,10 @@ export default async function BuscarPage({ searchParams }) {
                 budget: query.budget,
                 region: query.region,
                 maxKm: query.maxKm,
+                wholeMonth: "1",
               });
               return (
-                <article key={`${opt.slug}-${opt.outbound}`} className="card overflow-hidden">
+                <article key={`${opt.slug}-${opt.originRef}-${opt.outbound}`} className="card overflow-hidden">
                   <div className="flex gap-4">
                     <div className="hidden h-full w-28 sm:block">
                       {opt.image ? (
@@ -130,6 +151,9 @@ export default async function BuscarPage({ searchParams }) {
                             {monthLabel(opt.outbound)} → {monthLabel(opt.returnDate)}{" "}
                             <span className="text-stone-400">({opt.nights} noches)</span>
                           </p>
+                          {origins.length > 1 && (
+                            <p className="text-xs text-brand-600">📍 Desde {opt.originRef}</p>
+                          )}
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-extrabold text-brand-600">
@@ -192,10 +216,32 @@ export default async function BuscarPage({ searchParams }) {
             {destinations.length} destinos encontrados
           </p>
 
+          {query.transport === "plane" && destinations.length === 0 && (
+            <p className="rounded-2xl bg-stone-50 p-4 text-sm text-stone-500">
+              No hemos encontrado vuelos para estas fechas. Puede que estén
+              pasadas o demasiado lejanas (las tarifas cubren ~12 meses), o que
+              no haya conexión directa al destino. Prueba otras fechas, cambia
+              a coche, o activa «Ver el mes completo» o «Fechas flexibles».
+            </p>
+          )}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {destinations.map((dest) => (
-              <DestinationCard key={dest.slug} dest={dest} query={query} />
-            ))}
+            {destinations.map((dest) => {
+              const cardQuery = {
+                ...query,
+                origin: dest.originRef || query.origin,
+                startDate: dest.bestDates?.outbound || query.startDate,
+                endDate: dest.bestDates?.returnDate || query.endDate,
+              };
+              return (
+                <DestinationCard
+                  key={`${dest.originRef || query.origin}-${dest.slug}`}
+                  dest={dest}
+                  query={cardQuery}
+                  multiOrigin={origins.length > 1}
+                />
+              );
+            })}
           </div>
         </>
       )}

@@ -1,20 +1,7 @@
 "use client";
 
+import SectionLoader from "@/components/loading/SectionLoader";
 import { useEffect, useState } from "react";
-
-function Skeleton() {
-  return (
-    <div className="animate-pulse space-y-4">
-      {[0, 1].map((i) => (
-        <div key={i} className="space-y-2">
-          <div className="h-4 w-1/3 rounded bg-stone-200" />
-          <div className="h-3 w-2/3 rounded bg-stone-200" />
-          <div className="h-3 w-1/2 rounded bg-stone-200" />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function Activity({ a }) {
   return (
@@ -47,25 +34,39 @@ export default function Itinerary({ destination, query }) {
       budget: query.budget || "",
     });
     const ctrl = new AbortController();
+    const startTime = Date.now();
     setState({ status: "loading", data: null });
 
     fetch(`/api/itinerary?${params.toString()}`, { signal: ctrl.signal })
       .then((r) => r.json())
       .then((data) => {
-        if (data.error) setState({ status: "empty", data });
-        else setState({ status: "done", data });
+        const elapsed = Date.now() - startTime;
+        const minDelay = 4000;
+        const remaining = Math.max(0, minDelay - elapsed);
+
+        setTimeout(() => {
+          if (data.error) setState({ status: "empty", data });
+          else setState({ status: "done", data });
+        }, remaining);
       })
-      .catch(() =>
-        setState({
-          status: "empty",
-          data: { error: "No hemos podido generar el itinerario." },
-        })
-      );
+      .catch((err) => {
+        const elapsed = Date.now() - startTime;
+        const minDelay = 4000;
+        const remaining = Math.max(0, minDelay - elapsed);
+
+        setTimeout(() => {
+          setState({
+            status: "empty",
+            data: { error: "No hemos podido generar el itinerario." },
+          });
+        }, remaining);
+      });
 
     return () => ctrl.abort();
   }, [destination, query.startDate, query.endDate, query.travelers, query.budget]);
 
-  if (state.status === "loading") return <Skeleton />;
+  if (state.status === "loading")
+    return <SectionLoader label="Diseñando el itinerario con la IA…" />;
   if (state.status === "empty")
     return (
       <p className="text-sm text-stone-400">

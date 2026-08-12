@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: "class",
   content: [
     "./app/**/*.{js,jsx}",
     "./components/**/*.{js,jsx}",
@@ -21,6 +22,9 @@ module.exports = {
         },
         cream: "#fdfbf7",
         ink: "#1f2937",
+        night: "#111827",
+        nightCard: "#1f2937",
+        nightBorder: "#374151",
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],

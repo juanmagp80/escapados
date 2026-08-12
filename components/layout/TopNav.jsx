@@ -1,4 +1,5 @@
 import LogoutButton from "@/components/auth/LogoutButton";
+import ThemeToggle from "@/components/common/ThemeToggle";
 import { getCurrentUser } from "@/lib/supabase/session";
 import Link from "next/link";
 
@@ -13,7 +14,7 @@ export default async function TopNav() {
   const user = await getCurrentUser();
 
   return (
-    <header className="sticky top-0 z-20 border-b border-stone-100 bg-cream/90 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-stone-100 bg-cream/90 backdrop-blur dark:border-nightBorder dark:bg-night/90">
       <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
         <Link href="/" className="text-xl font-extrabold text-brand-600">
           Escapa²
@@ -23,16 +24,17 @@ export default async function TopNav() {
             <Link
               key={l.href}
               href={l.href}
-              className="text-sm font-medium text-stone-600"
+              className="text-sm font-medium text-stone-600 dark:text-stone-300"
             >
               {l.label}
             </Link>
           ))}
+          <ThemeToggle />
           {user ? (
             <>
               <Link
                 href="/perfil"
-                className="text-sm font-medium text-stone-600"
+                className="text-sm font-medium text-stone-600 dark:text-stone-300"
                 title="Tu perfil"
               >
                 👤

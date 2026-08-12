@@ -5,12 +5,28 @@
 :root {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
+  --bg: #fdfbf7;
+  --text: #1f2937;
+  --card-bg: #ffffff;
+  --border: #e7e5e4;
+  --muted: #78716c;
+}
+
+.dark {
+  --bg: #111827;
+  --text: #f3f4f6;
+  --card-bg: #1f2937;
+  --border: #374151;
+  --muted: #9ca3af;
 }
 
 html,
 body {
   padding: 0;
   margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 * {
@@ -41,18 +57,20 @@ input[type="number"] {
   }
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-full border border-brand-200
-      bg-white px-5 py-3 text-sm font-medium text-brand-700 transition active:scale-[0.98];
+      bg-white px-5 py-3 text-sm font-medium text-brand-700 transition active:scale-[0.98]
+      dark:border-brand-800 dark:bg-night dark:text-brand-300;
   }
   .field {
     @apply w-full rounded-2xl border border-stone-200 bg-white px-4 py-3.5 text-base
-      text-ink outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100;
+      text-ink outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100
+      dark:border-nightBorder dark:bg-nightCard dark:text-stone-100 dark:focus:ring-brand-900;
   }
   .card {
-    @apply rounded-xl2 bg-white shadow-card;
+    @apply rounded-xl2 bg-white shadow-card dark:bg-nightCard;
   }
   .chip {
     @apply inline-flex items-center gap-1 rounded-full bg-brand-50 px-3 py-1 text-sm
-      font-medium text-brand-700;
+      font-medium text-brand-700 dark:bg-brand-900/40 dark:text-brand-300;
   }
   .container-app {
     @apply mx-auto w-full max-w-3xl px-4 pb-12 pt-8 sm:px-6 sm:pt-10
@@ -61,6 +79,23 @@ input[type="number"] {
   .container-narrow {
     @apply mx-auto w-full max-w-md px-5 pb-10 pt-12 sm:pt-14 lg:max-w-5xl;
   }
+}
+
+/* Dark mode overrides for common text colors */
+.dark .text-ink { color: #f3f4f6; }
+.dark .text-stone-500 { color: #9ca3af; }
+.dark .text-stone-400 { color: #6b7280; }
+.dark .text-stone-600 { color: #d1d5db; }
+.dark .text-stone-700 { color: #e5e7eb; }
+.dark .bg-cream { background-color: #111827; }
+.dark .bg-stone-50 { background-color: #1f2937; }
+.dark .bg-stone-100 { background-color: #262f3d; }
+.dark .border-stone-100 { border-color: #374151; }
+.dark .border-stone-200 { border-color: #374151; }
+.dark .bg-white { background-color: #1f2937; }
+
+.dark :is(textarea, input, select) {
+  color-scheme: dark;
 }
 
 /* ===== EscapadaLoader (animación de carga) ===== */
@@ -344,5 +379,21 @@ input[type="number"] {
   100% {
     transform: translateY(-15px) rotate(45deg) scale(1.15);
     opacity: 0;
+  }
+}
+
+/* Accesibilidad: foco visible y movimiento reducido */
+:focus-visible {
+  outline: 3px solid #f97316;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

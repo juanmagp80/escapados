@@ -9,7 +9,7 @@ import EVChargersList from "@/components/fuel/EVChargersList";
 import GasStationsList from "@/components/fuel/GasStationsList";
 import TransportCompare from "@/components/fuel/TransportCompare";
 import Itinerary from "@/components/itinerary/Itinerary";
-import RouteMap from "@/components/maps/RouteMap";
+import UnifiedTripMap from "@/components/maps/UnifiedTripMap";
 import SerpFetcher from "@/components/places/SerpFetcher";
 import RainPlanB from "@/components/weather/RainPlanB";
 import { findCommunity } from "@/lib/destinations/communities";
@@ -189,7 +189,7 @@ export default async function DestinoPage({ params, searchParams }) {
 
   return (
     <main className="container-app">
-      <div className="relative h-64 overflow-hidden bg-gradient-to-br from-brand-300 to-brand-600">
+      <div className="relative h-64 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-300 to-brand-600">
         {detail.image && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -400,12 +400,13 @@ export default async function DestinoPage({ params, searchParams }) {
           </Section>
         )}
 
-        <Section icon="🗺️" title="Mapa de la ruta">
-          <RouteMap
+        <Section icon="🗺️" title="Mapa del viaje">
+          <UnifiedTripMap
             origin={{ name: query.origin, lat: detail.origin?.lat, lon: detail.origin?.lon }}
             destination={{ name: name, lat: destination.lat, lon: destination.lon }}
             transport={query.transport}
             route={route}
+            hotels={hotels}
           />
         </Section>
 

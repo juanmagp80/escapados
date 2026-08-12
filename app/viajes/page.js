@@ -1,6 +1,7 @@
 import DeleteButton from "@/components/common/DeleteButton";
 import DownloadICSButton from "@/components/common/DownloadICSButton";
 import PublishTripButton from "@/components/destinations/PublishTripButton";
+import ShareTripButton from "@/components/destinations/ShareTripButton";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/supabase/session";
 import { buildTripICS } from "@/lib/trips/ics";
@@ -110,6 +111,7 @@ export default async function ViajesPage() {
                         filename={`escapa2-${t.slug || "viaje"}.ics`}
                       />
                       <PublishTripButton trip={t} />
+                      <ShareTripButton tripId={t.id} />
                       <DeleteButton table="trips" id={t.id} />
                     </span>
                   </div>

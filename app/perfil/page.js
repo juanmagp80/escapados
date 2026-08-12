@@ -1,3 +1,4 @@
+import PushNotificationsToggle from "@/components/common/PushNotificationsToggle";
 import Achievements from "@/components/profile/Achievements";
 import PreferencesForm from "@/components/profile/PreferencesForm";
 import { findDestination } from "@/lib/destinations/catalog";
@@ -52,6 +53,16 @@ export default async function PerfilPage() {
             <div className="space-y-6">
                 <Achievements stats={stats} />
                 <PreferencesForm preferences={preferences} />
+                <div className="card p-5">
+                    <h2 className="mb-1 text-lg font-bold text-ink">
+                        🔔 Notificaciones
+                    </h2>
+                    <p className="mb-3 text-sm text-stone-500">
+                        Recibe alertas de precio y cambios de meteorología en tu
+                        dispositivo (PWA instalable).
+                    </p>
+                    <PushNotificationsToggle />
+                </div>
             </div>
         </main>
     );

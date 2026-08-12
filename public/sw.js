@@ -1,9 +1,6 @@
 // Service Worker for Escapa2 PWA
-const CACHE_NAME = "escapa2-v1";
-const STATIC_ASSETS = [
-  "/",
-  "/manifest.json",
-];
+const CACHE_NAME = "escapa2-v2";
+const STATIC_ASSETS = ["/", "/manifest.json"];
 
 // Install event - cache static assets
 self.addEventListener("install", (event) => {
@@ -13,7 +10,7 @@ self.addEventListener("install", (event) => {
     })
   );
   self.skipWaiting();
-};
+});
 
 // Activate event - clean old caches
 self.addEventListener("activate", (event) => {
@@ -27,7 +24,42 @@ self.addEventListener("activate", (event) => {
     })
   );
   self.clients.claim();
-};
+});
+
+// Push event - show notification from server push
+self.addEventListener("push", (event) => {
+  let data = { title: "Escapa2", body: "Tienes una alerta de tu escapada." };
+  try {
+    if (event.data) data = event.data.json();
+  } catch {
+    // Not valid JSON, use defaults
+  }
+
+  const options = {
+    body: data.body || data.title || "Tienes una alerta de tu escapada.",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    data: { url: data.url || "/" },
+  };
+
+  event.waitUntil(self.registration.showNotification(data.title || "Escapa2", options));
+});
+
+// Notification click - open the app
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/";
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url === url && "focus" in client) {
+          return client.focus();
+        }
+      }
+      return clients.openWindow(url);
+    })
+  );
+});
 
 // Fetch event - network first, fallback to cache
 self.addEventListener("fetch", (event) => {

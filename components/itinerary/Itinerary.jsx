@@ -2,12 +2,14 @@
 
 import DownloadPDFButton from "@/components/common/DownloadPDFButton";
 import ItineraryChat from "@/components/itinerary/ItineraryChat";
+import ItineraryEditor from "@/components/itinerary/ItineraryEditor";
 import ItineraryGeo from "@/components/itinerary/ItineraryGeo";
 import SectionLoader from "@/components/loading/SectionLoader";
 import { useEffect, useState } from "react";
 
 export default function Itinerary({ destination, query }) {
   const [state, setState] = useState({ status: "loading", data: null });
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams({
@@ -64,7 +66,31 @@ export default function Itinerary({ destination, query }) {
   return (
     <div className="space-y-4">
       {summary && <p className="text-sm text-stone-600">{summary}</p>}
-      <ItineraryGeo days={days} />
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setEditMode((v) => !v)}
+          aria-pressed={editMode}
+          className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${editMode
+              ? "bg-brand-500 text-white"
+              : "bg-stone-100 text-stone-600"
+            }`}
+        >
+          {editMode ? "✓ Hecho" : "✏️ Editar (arrastrar y soltar)"}
+        </button>
+      </div>
+
+      {editMode ? (
+        <ItineraryEditor
+          days={days}
+          onChange={(newDays) =>
+            setState({ status: "done", data: { ...state.data, days: newDays } })
+          }
+        />
+      ) : (
+        <ItineraryGeo days={days} />
+      )}
+
       {notes && (
         <p className="rounded-xl bg-stone-50 px-3 py-2 text-xs text-stone-400">
           {notes}

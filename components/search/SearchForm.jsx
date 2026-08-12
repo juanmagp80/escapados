@@ -25,6 +25,7 @@ const MODES = [
 ];
 
 const RECENT_KEY = "escapa2_recent_searches";
+const ORIGIN_KEY = "escapa2_last_origin";
 
 function isoDate(offsetDays) {
     const d = new Date();
@@ -105,8 +106,14 @@ export default function SearchForm({ defaultOrigin = "" }) {
             { cache: "no-store" }
           );
           const data = await res.json();
-          if (data.name) setOrigin(data.name);
-          else setError("No hemos podido identificar la ciudad exacta.");
+          if (data.name) {
+            setOrigin(data.name);
+            try {
+              localStorage.setItem(ORIGIN_KEY, data.name);
+            } catch {
+              /* localStorage no disponible */
+            }
+          } else setError("No hemos podido identificar la ciudad exacta.");
         } catch {
           setError("No pudimos determinar tu ubicación.");
         } finally {
@@ -174,6 +181,11 @@ export default function SearchForm({ defaultOrigin = "" }) {
         const target = community
           ? `/comunidad/${community.slug}`
           : `/destinos/${slugify(destination)}`;
+        try {
+          localStorage.setItem(ORIGIN_KEY, origin.trim());
+        } catch {
+          /* localStorage no disponible */
+        }
         await router.push(`${target}?${params.toString()}`);
       } catch (err) {
         setError(err.message || "No hemos podido buscar ahora mismo.");
@@ -212,6 +224,11 @@ export default function SearchForm({ defaultOrigin = "" }) {
       maxKm: maxKm || "",
       flexible: transport === "plane" && flexible ? "1" : "",
     });
+    try {
+      if (origins[0]) localStorage.setItem(ORIGIN_KEY, origins[0]);
+    } catch {
+      /* localStorage no disponible */
+    }
     router.push(`/buscar?${params.toString()}`);
   }
 

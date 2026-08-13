@@ -4,6 +4,7 @@ import HotelList from "@/components/hotels/HotelList";
 import SectionLoader from "@/components/loading/SectionLoader";
 import PlaceList from "@/components/places/PlaceList";
 import PoiMap from "@/components/maps/PoiMap";
+import { publishTripData } from "@/lib/client/tripDataBus";
 import { useEffect, useState } from "react";
 
 function Empty({ notice }) {
@@ -52,8 +53,11 @@ export default function SerpFetcher({
         const minDelay = 4000;
         const remaining = Math.max(0, minDelay - elapsed);
 
+        const items = data.hotels || data.items || [];
+        // Comparte los puntos con el mapa del viaje (same destino = scope).
+        publishTripData(query, endpoint, items);
+
         setTimeout(() => {
-          const items = data.hotels || data.items || [];
           if (!items.length) setState({ status: "empty", data });
           else setState({ status: "done", data: { ...data, items } });
         }, remaining);
@@ -90,7 +94,13 @@ export default function SerpFetcher({
   if (kind === "hotels")
     return (
       <>
-        <HotelList items={items} data={state.data} />
+        <HotelList
+          items={items}
+          data={state.data}
+          checkIn={checkIn}
+          checkOut={checkOut}
+          guests={guests}
+        />
         {lat != null && lon != null && (
           <div className="mt-3">
             <PoiMap center={{ lat: Number(lat), lon: Number(lon) }} points={items} />

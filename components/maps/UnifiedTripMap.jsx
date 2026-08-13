@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { subscribeTripData } from "@/lib/client/tripDataBus";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const COLORS = {
     origin: "#10b981",
@@ -49,10 +50,41 @@ export default function UnifiedTripMap({
         attractions: true,
         fuel: true,
     });
+    // Datos compartidos por las otras secciones (restaurantes, atracciones,
+    // gasolineras) vía el bus de datos del viaje.
+    const [shared, setShared] = useState(null);
 
     useEffect(() => {
         setMounted(true);
     }, []);
+
+    // Suscripción al bus de datos del destino.
+    useEffect(() => {
+        const unsubscribe = subscribeTripData(destination?.name, (data) =>
+            setShared({ ...data })
+        );
+        return unsubscribe;
+    }, [destination?.name]);
+
+    // Los props mandan si vienen rellenos; si no, se usan los del bus.
+    const lists = useMemo(
+        () => ({
+            hotelsList: (hotels && hotels.length > 0 ? hotels : shared?.hotels) || [],
+            restaurantsList:
+                (restaurants && restaurants.length > 0
+                    ? restaurants
+                    : shared?.restaurants) || [],
+            attractionsList:
+                (attractions && attractions.length > 0
+                    ? attractions
+                    : shared?.attractions) || [],
+            fuelList:
+                (fuelStations && fuelStations.length > 0
+                    ? fuelStations
+                    : shared?.fuelStations) || [],
+        }),
+        [hotels, restaurants, attractions, fuelStations, shared]
+    );
 
     useEffect(() => {
         if (!mounted || !mapRef.current) return;
@@ -92,6 +124,7 @@ export default function UnifiedTripMap({
             const allPoints = [];
             const addMarker = (lat, lon, { icon, popup, group }) => {
                 if (lat == null || lon == null) return;
+                if (!visibleLayers[group]) return; // capa desactivada
                 allPoints.push({ lat, lon, group });
                 const m = L.marker([lat, lon], { icon }).addTo(mapInstance);
                 if (popup) m.bindPopup(popup);
@@ -99,25 +132,27 @@ export default function UnifiedTripMap({
             };
 
             // Ruta
-            if (route && route.coordinates && route.coordinates.length > 1) {
-                L.polyline(route.coordinates, {
-                    color: "#ea580c",
-                    weight: 4,
-                    opacity: 0.85,
-                    dashArray: transport === "plane" ? "10, 10" : undefined,
-                }).addTo(mapInstance);
-            }
-            if (origin?.lat != null && origin?.lon != null) {
-                addMarker(origin.lat, origin.lon, {
-                    icon: L.divIcon({
-                        html: iconHtml(COLORS.origin, "A"),
-                        className: "",
-                        iconSize: [18, 18],
-                        iconAnchor: [9, 9],
-                    }),
-                    popup: `<b>Origen:</b> ${origin.name || ""}`,
-                    group: "route",
-                });
+            if (visibleLayers.route) {
+                if (route && route.coordinates && route.coordinates.length > 1) {
+                    L.polyline(route.coordinates, {
+                        color: "#ea580c",
+                        weight: 4,
+                        opacity: 0.85,
+                        dashArray: transport === "plane" ? "10, 10" : undefined,
+                    }).addTo(mapInstance);
+                }
+                if (origin?.lat != null && origin?.lon != null) {
+                    addMarker(origin.lat, origin.lon, {
+                        icon: L.divIcon({
+                            html: iconHtml(COLORS.origin, "A"),
+                            className: "",
+                            iconSize: [18, 18],
+                            iconAnchor: [9, 9],
+                        }),
+                        popup: `<b>Origen:</b> ${origin.name || ""}`,
+                        group: "route",
+                    });
+                }
             }
 
             // Actividades del itinerario agrupadas por día
@@ -141,7 +176,7 @@ export default function UnifiedTripMap({
             });
 
             // Hoteles
-            (hotels || []).forEach((h) => {
+            (lists.hotelsList || []).forEach((h) => {
                 if (h.lat == null || h.lon == null) return;
                 const price = h.pricePerNight ? ` · ${h.pricePerNight}€/noche` : "";
                 addMarker(h.lat, h.lon, {
@@ -157,7 +192,7 @@ export default function UnifiedTripMap({
             });
 
             // Restaurantes
-            (restaurants || []).forEach((r) => {
+            (lists.restaurantsList || []).forEach((r) => {
                 if (r.lat == null || r.lon == null) return;
                 addMarker(r.lat, r.lon, {
                     icon: L.divIcon({
@@ -172,7 +207,7 @@ export default function UnifiedTripMap({
             });
 
             // Otras atracciones
-            (attractions || []).forEach((a) => {
+            (lists.attractionsList || []).forEach((a) => {
                 if (a.lat == null || a.lon == null) return;
                 addMarker(a.lat, a.lon, {
                     icon: L.divIcon({
@@ -187,8 +222,9 @@ export default function UnifiedTripMap({
             });
 
             // Gasolineras / puntos de carga
-            (fuelStations || []).forEach((f) => {
+            (lists.fuelList || []).forEach((f) => {
                 if (f.lat == null || f.lon == null) return;
+                const priceHint = f.price ? ` · ${f.price.toFixed(3)}€/L` : "";
                 addMarker(f.lat, f.lon, {
                     icon: L.divIcon({
                         html: iconHtml(COLORS.fuel, "⛽"),
@@ -196,7 +232,7 @@ export default function UnifiedTripMap({
                         iconSize: [18, 18],
                         iconAnchor: [9, 9],
                     }),
-                    popup: `<b>⛽ ${f.name || "Gasolinera"}</b>`,
+                    popup: `<b>⛽ ${f.name || "Gasolinera"}</b>${priceHint}`,
                     group: "fuel",
                 });
             });
@@ -228,7 +264,7 @@ export default function UnifiedTripMap({
                 mapInstance = null;
             }
         };
-    }, [origin, destination, transport, route, days, hotels, restaurants, attractions, fuelStations, mounted]);
+    }, [origin, destination, transport, route, days, lists, visibleLayers, mounted]);
 
     if (!mounted) {
         return <div className={`w-full ${height} rounded-xl2 bg-stone-100 animate-pulse`} />;

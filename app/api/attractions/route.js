@@ -1,4 +1,5 @@
 import { generatePlaces } from "@/lib/ai/gemini";
+import { enrichPlacesWithCoords } from "@/lib/maps/geocodePlaces";
 import { getPlaces } from "@/lib/serpapi/providers/places";
 import { withFallback } from "@/lib/utils/cache";
 import { NextResponse } from "next/server";
@@ -19,6 +20,7 @@ export async function GET(request) {
   if (!result.items || result.items.length === 0) {
     const fallback = await getPlaces({ q, category: "attractions" });
     if (fallback.items && fallback.items.length > 0) {
+      fallback.items = await enrichPlacesWithCoords(fallback.items, q);
       return NextResponse.json(fallback);
     }
     return NextResponse.json({
@@ -27,5 +29,6 @@ export async function GET(request) {
       notice: "No hemos podido obtener recomendaciones ahora mismo.",
     });
   }
+  result.items = await enrichPlacesWithCoords(result.items, q);
   return NextResponse.json(result);
 }

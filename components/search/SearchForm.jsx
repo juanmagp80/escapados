@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { slugify, localIso } from "@/lib/utils/format";
 import { findCommunity } from "@/lib/destinations/communities";
+import { TRIP_CATEGORIES } from "@/lib/destinations/categories";
 import { splitOrigins } from "@/lib/search/splitOrigins";
 import EscapadaLoader from "@/components/loading/EscapadaLoader";
 
@@ -50,12 +51,13 @@ export default function SearchForm({ defaultOrigin = "" }) {
   const [transport, setTransport] = useState("car");
   const [budget, setBudget] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
-  const [region, setRegion] = useState("any");
   const [maxKm, setMaxKm] = useState("");
   const [wholeMonth, setWholeMonth] = useState(false);
   const [flexible, setFlexible] = useState(false);
+  const [vacations, setVacations] = useState(false);
   const [mode, setMode] = useState("any");
   const [destination, setDestination] = useState("");
+  const [interest, setInterest] = useState("");
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState(null);
@@ -146,9 +148,10 @@ export default function SearchForm({ defaultOrigin = "" }) {
     setTransport(r.transport);
     setBudget(r.budget || "");
     setMaxPrice(r.maxPrice || "");
-    setRegion(r.region || "any");
     setMaxKm(r.maxKm || "");
     setFlexible(!!r.flexible);
+    setInterest(r.interest || "");
+    setVacations(!!r.vacations);
   }
 
   async function handleSubmit(e) {
@@ -203,10 +206,11 @@ export default function SearchForm({ defaultOrigin = "" }) {
       transport,
       budget: budget || "",
       maxPrice: maxPrice || "",
-      region: region !== "any" ? region : "",
       maxKm: maxKm || "",
-      wholeMonth: transport === "plane" && wholeMonth ? "1" : "",
+      wholeMonth: transport === "plane" && wholeMonth && !vacations ? "1" : "",
       flexible: transport === "plane" && flexible ? "1" : "",
+      vacations: vacations ? "1" : "",
+      interest: interest || "",
     });
 
     // No validamos antes: /buscar resuelve las búsquedas y muestra sus
@@ -220,9 +224,10 @@ export default function SearchForm({ defaultOrigin = "" }) {
       transport,
       budget: budget || "",
       maxPrice: maxPrice || "",
-      region: region !== "any" ? region : "",
       maxKm: maxKm || "",
       flexible: transport === "plane" && flexible ? "1" : "",
+      interest: interest || "",
+      vacations: vacations ? "1" : "",
     });
     try {
       if (origins[0]) localStorage.setItem(ORIGIN_KEY, origins[0]);
@@ -281,6 +286,41 @@ export default function SearchForm({ defaultOrigin = "" }) {
         </div>
       </div>
 
+      {mode === "any" && (
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-stone-600">
+            ¿Qué os apetece?{" "}
+            <span className="font-normal text-stone-400">
+              (ordenará las escapadas a vuestro gusto)
+            </span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setInterest("")}
+              className={`chip active:scale-95 ${
+                interest === "" ? "bg-brand-600 text-white" : "bg-white"
+              }`}
+            >
+              ✨ Sorpréndeme
+            </button>
+            {TRIP_CATEGORIES.map((c) => (
+              <button
+                type="button"
+                key={c.id}
+                title={c.description}
+                onClick={() => setInterest(interest === c.id ? "" : c.id)}
+                className={`chip active:scale-95 ${
+                  interest === c.id ? "bg-brand-600 text-white" : "bg-white"
+                }`}
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
         <label className="mb-1.5 block text-sm font-medium text-stone-600">
           📍 Desde {mode === "any" && <span className="font-normal text-stone-400">(varios con “,”)</span>}
@@ -322,7 +362,7 @@ export default function SearchForm({ defaultOrigin = "" }) {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-stone-600">
-            📅 Salida
+            {vacations ? "🗓️ Vacaciones: inicio" : "📅 Salida"}
           </label>
           <input
             type="date"
@@ -333,7 +373,7 @@ export default function SearchForm({ defaultOrigin = "" }) {
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-stone-600">
-            📅 Regreso
+            {vacations ? "🗓️ Vacaciones: fin" : "📅 Regreso"}
           </label>
           <input
             type="date"
@@ -424,60 +464,67 @@ export default function SearchForm({ defaultOrigin = "" }) {
         </div>
       </div>
 
-      {transport === "plane" && mode === "any" && (
+      {mode === "any" && (
         <div className="space-y-2">
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-600">
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-stone-600">
             <input
               type="checkbox"
-              checked={wholeMonth}
-              onChange={(e) => setWholeMonth(e.target.checked)}
-              className="h-4 w-4 accent-brand-500"
+              checked={vacations}
+              onChange={(e) => {
+                setVacations(e.target.checked);
+                if (e.target.checked) setWholeMonth(false);
+              }}
+              className="mt-0.5 h-4 w-4 accent-brand-500"
             />
-            📅 Ver el mes completo: busco el vuelo más barato cada fin de
-            semana y te muestro todas las opciones
+            <span>
+              🏖️ Mis vacaciones: combino{" "}
+              <strong>escapadas de 2, 3, 4 y 5 días</strong> dentro del
+              período y las ordeno de más barato a más caro
+            </span>
           </label>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-600">
-            <input
-              type="checkbox"
-              checked={flexible}
-              onChange={(e) => setFlexible(e.target.checked)}
-              className="h-4 w-4 accent-brand-500"
-            />
-            🔀 Fechas flexibles (±2 días): pruebo las salidas cercanas y me
-            quedo con la más barata
-          </label>
+          {transport === "plane" && (
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-600">
+              <input
+                type="checkbox"
+                checked={wholeMonth}
+                onChange={(e) => {
+                  setWholeMonth(e.target.checked);
+                  if (e.target.checked) setVacations(false);
+                }}
+                className="h-4 w-4 accent-brand-500"
+              />
+              📅 Ver el mes completo: busco el vuelo más barato cada fin de
+              semana y te muestro todas las opciones
+            </label>
+          )}
+          {transport === "plane" && (
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-stone-600">
+              <input
+                type="checkbox"
+                checked={flexible}
+                onChange={(e) => setFlexible(e.target.checked)}
+                className="h-4 w-4 accent-brand-500"
+              />
+              🔀 Fechas flexibles (±2 días): pruebo las salidas cercanas y me
+              quedo con la más barata
+            </label>
+          )}
         </div>
       )}
 
       {mode === "any" && (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-stone-600">
-              🏞️ Zona
-            </label>
-            <select
-              className="field"
-              value={region}
-              onChange={(e) => setRegion(e.target.value)}
-            >
-              <option value="any">Cualquiera</option>
-              <option value="costa">Costa</option>
-              <option value="interior">Interior</option>
-            </select>
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-stone-600">
-              📏 Km máximo
-            </label>
-            <input
-              type="number"
-              min={0}
-              className="field"
-              placeholder="Opcional"
-              value={maxKm}
-              onChange={(e) => setMaxKm(e.target.value)}
-            />
-          </div>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-stone-600">
+            📏 km máximos de distancia
+          </label>
+          <input
+            type="number"
+            min={0}
+            className="field"
+            placeholder="Opcional"
+            value={maxKm}
+            onChange={(e) => setMaxKm(e.target.value)}
+          />
         </div>
       )}
 

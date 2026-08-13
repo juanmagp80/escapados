@@ -1,5 +1,6 @@
 import ShareButton from "@/components/common/ShareButton";
-import ExpenseReport from "@/components/destinations/ExpenseReport";
+import DestinationInfo from "@/components/destinations/DestinationInfo";
+import ExpenseStatsCard from "@/components/destinations/ExpenseStatsCard";
 import PriceAlert from "@/components/destinations/PriceAlert";
 import PriceCalendar from "@/components/destinations/PriceCalendar";
 import RatingForm from "@/components/destinations/RatingForm";
@@ -12,6 +13,8 @@ import Itinerary from "@/components/itinerary/Itinerary";
 import UnifiedTripMap from "@/components/maps/UnifiedTripMap";
 import SerpFetcher from "@/components/places/SerpFetcher";
 import RainPlanB from "@/components/weather/RainPlanB";
+import WeatherExtras from "@/components/weather/WeatherExtras";
+import { bookingSearchUrl } from "@/lib/booking/deeplinks";
 import { findCommunity } from "@/lib/destinations/communities";
 import { estimateTripCost } from "@/lib/destinations/costEstimate";
 import { getDestinationDetail } from "@/lib/destinations/detail";
@@ -217,6 +220,11 @@ export default async function DestinoPage({ params, searchParams }) {
                 {nights ? ` · ${nights} noches` : ""}
               </p>
             )}
+            {detail.bridge?.isBridge && (
+              <span className="mt-1 inline-block rounded-full bg-amber-400/90 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                📅 {detail.bridge.bridgeHint}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -263,9 +271,24 @@ export default async function DestinoPage({ params, searchParams }) {
                 </>
               )}
               <RainPlanB rainyDays={rainyTripDays} />
+              <WeatherExtras
+                lat={destination.lat}
+                lon={destination.lon}
+                coast={detail.region === "costa"}
+              />
             </Section>
           </div>
         )}
+
+        {destination.lat && destination.lon && (
+          <div className="sm:col-span-2">
+            <DestinationInfo name={name} lat={destination.lat} lon={destination.lon} />
+          </div>
+        )}
+
+        <div className="sm:col-span-2">
+          <ExpenseStatsCard destination={name} />
+        </div>
 
         {query.transport === "car" && route && (
           <Section icon="🚗" title="Ruta en coche">
@@ -418,6 +441,7 @@ export default async function DestinoPage({ params, searchParams }) {
               destLat={destination.lat}
               destLon={destination.lon}
               routeCoordinates={route.coordinates}
+              scope={name}
             />
           </Section>
         )}
@@ -536,6 +560,22 @@ export default async function DestinoPage({ params, searchParams }) {
             El transporte se calcula con la distancia real de la ruta. Comida y
             actividades son extras orientativos, no incluidos en el total.
           </p>
+
+          {query.startDate && query.endDate && (
+            <a
+              href={bookingSearchUrl({
+                name,
+                checkIn: query.startDate,
+                checkOut: query.endDate,
+                adults: query.travelers,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-brand-700"
+            >
+              🛎️ Ver alojamientos reales en Booking.com
+            </a>
+          )}
         </div>
 
         <div className="rounded-xl2 bg-white p-4 shadow-card sm:col-span-2">
@@ -546,7 +586,6 @@ export default async function DestinoPage({ params, searchParams }) {
             query={query}
           />
           <RatingForm destination={name} />
-          <ExpenseReport destination={name} />
           <div className="mt-3 border-t border-stone-100 pt-3">
             <ShareButton
               url={`/destinos/${params.slug}?${new URLSearchParams(query).toString()}`}

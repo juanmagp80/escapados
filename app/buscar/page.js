@@ -1,7 +1,9 @@
 import DestinationCard from "@/components/destinations/DestinationCard";
 import SurpriseMode from "@/components/destinations/SurpriseMode";
+import { categoryById } from "@/lib/destinations/categories";
 import { runMultiOriginSearch, splitOrigins } from "@/lib/search/runMultiOrigin";
 import { runSearch } from "@/lib/search/runSearch";
+import { analyzeBridge } from "@/lib/destinations/holidays";
 import { formatEuro } from "@/lib/utils/format";
 import Link from "next/link";
 
@@ -30,7 +32,11 @@ export default async function BuscarPage({ searchParams }) {
     maxKm: searchParams.maxKm || "",
     wholeMonth: searchParams.wholeMonth === "1",
     flexible: searchParams.flexible === "1",
+    vacations: searchParams.vacations === "1",
+    interest: searchParams.interest || "",
   };
+
+  const selectedCategory = categoryById(query.interest);
 
   if (!query.origin) {
     return (
@@ -44,10 +50,11 @@ export default async function BuscarPage({ searchParams }) {
   }
 
   const origins = splitOrigins(query.origin);
+  const interests = selectedCategory ? selectedCategory.interests : [];
   const result =
     origins.length > 1
-      ? await runMultiOriginSearch({ ...query, origins })
-      : await runSearch(query);
+      ? await runMultiOriginSearch({ ...query, origins, interests })
+      : await runSearch({ ...query, interests });
 
   if (result.error) {
     return (
@@ -64,29 +71,53 @@ export default async function BuscarPage({ searchParams }) {
 
   const { destinations, best, failedOrigins = [] } = result;
 
-  // Todas las opciones de vuelo del mes, ordenadas de menor a mayor precio.
-  const monthOptions = [];
-  if (query.wholeMonth) {
-    for (const d of destinations) {
-      for (const opt of d.flightOptions || []) {
-        monthOptions.push({
-          name: d.name,
-          slug: d.slug,
-          image: d.image,
-          outbound: opt.outbound,
-          returnDate: opt.returnDate,
-          nights: opt.nights,
-          price: opt.totalPrice,
-          pricePerPerson: opt.pricePerPerson,
-          airline: opt.airline,
-          link: opt.link,
-          distanceKm: d.distanceKm,
-          estimatedCost: d.estimatedCost,
-          originRef: opt.originRef || d.originRef || query.origin,
-        });
+  // Todas las combinaciones del período, ordenadas de menor a mayor precio.
+  // Avión: cada combinación de fechas con su vuelo. Coche: cada combinación
+  // de 2-5 días con su coste total estimado.
+  const showCombos = query.wholeMonth || query.vacations;
+  const combos = [];
+  if (showCombos) {
+    if (query.transport === "car") {
+      for (const d of destinations) {
+        for (const opt of d.comboOptions || []) {
+          combos.push({
+            name: d.name,
+            slug: d.slug,
+            image: d.image,
+            outbound: opt.outbound,
+            returnDate: opt.returnDate,
+            nights: opt.nights,
+            price: opt.estimatedCost,
+            transport: "car",
+            distanceLabel: opt.distanceLabel,
+            durationLabel: opt.durationLabel,
+            originRef: d.originRef || query.origin,
+          });
+        }
+      }
+    } else {
+      for (const d of destinations) {
+        for (const opt of d.flightOptions || []) {
+          combos.push({
+            name: d.name,
+            slug: d.slug,
+            image: d.image,
+            outbound: opt.outbound,
+            returnDate: opt.returnDate,
+            nights: opt.nights,
+            price: opt.totalPrice,
+            pricePerPerson: opt.pricePerPerson,
+            airline: opt.airline,
+            link: opt.link,
+            distanceKm: d.distanceKm,
+            estimatedCost: d.estimatedCost,
+            originRef: opt.originRef || d.originRef || query.origin,
+            bridge: analyzeBridge(opt.outbound, opt.returnDate),
+          });
+        }
       }
     }
-    monthOptions.sort((a, b) => a.price - b.price);
+    combos.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
   }
 
   const originLabel = origins.length > 1
@@ -103,7 +134,9 @@ export default async function BuscarPage({ searchParams }) {
           Escapadas desde {originLabel}
         </h1>
         <p className="text-sm text-stone-500">
-          {query.wholeMonth
+          {query.vacations
+            ? `Todas las escapadas de tus vacaciones (${query.startDate} → ${query.endDate}) · ${query.travelers} viajeros · ${query.transport === "car" ? "🚗 Coche (combinaciones de 2-5 días)" : "✈️ Avión (combinaciones de 2-5 días)"}`
+            : query.wholeMonth
             ? `Vuelos de ${new Date(query.startDate).toLocaleDateString("es-ES", { month: "long", year: "numeric" })} · ${query.travelers} viajeros · ✈️ Avión`
             : `${query.startDate} → ${query.endDate} · ${query.travelers} viajeros · ${query.transport === "car" ? "🚗 Coche" : "✈️ Avión"}${query.flexible ? " · fechas flexibles" : ""}`}
         </p>
@@ -117,26 +150,40 @@ export default async function BuscarPage({ searchParams }) {
         </aside>
       )}
 
-      {query.wholeMonth ? (
+      {selectedCategory && (
+        <aside className="mb-5 rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3 text-sm text-brand-800">
+          🎯 Buscando escapadas de{" "}
+          <span className="font-bold">{selectedCategory.label}</span>
+          {selectedCategory.description
+            ? ` — ${selectedCategory.description}`
+            : ""}
+          . Los destinos que encajan aparecen primero.
+        </aside>
+      )}
+
+      {showCombos ? (
         <section>
           <p className="mb-3 text-sm font-medium text-stone-500">
-            {monthOptions.length} opciones de vuelo, de la más barata a la más cara
+            {combos.length}{" "}
+            {query.transport === "car"
+              ? "escapadas posibles (combinaciones de 2-5 días), de la más barata a la más cara"
+              : "combinaciones de vuelo, de la más barata a la más cara"}
           </p>
           <div className="space-y-3">
-            {monthOptions.map((opt) => {
+            {combos.map((opt) => {
               const detailQuery = new URLSearchParams({
                 origin: opt.originRef,
                 startDate: opt.outbound,
                 endDate: opt.returnDate,
                 travelers: query.travelers,
-                transport: "plane",
+                transport: query.transport,
                 budget: query.budget,
-                region: query.region,
                 maxKm: query.maxKm,
-                wholeMonth: "1",
               });
+              if (query.wholeMonth) detailQuery.set("wholeMonth", "1");
+              if (query.vacations) detailQuery.set("vacations", "1");
               return (
-                <article key={`${opt.slug}-${opt.originRef}-${opt.outbound}`} className="card overflow-hidden">
+                <article key={`${opt.slug}-${opt.originRef}-${opt.outbound}-${opt.returnDate}`} className="card overflow-hidden">
                   <div className="flex gap-4">
                     <div className="hidden h-full w-28 sm:block">
                       {opt.image ? (
@@ -151,9 +198,22 @@ export default async function BuscarPage({ searchParams }) {
                           <p className="text-sm text-stone-500">
                             {monthLabel(opt.outbound)} → {monthLabel(opt.returnDate)}{" "}
                             <span className="text-stone-400">({opt.nights} noches)</span>
+                            {opt.bridge?.isBridge && (
+                              <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                📅 Puente
+                              </span>
+                            )}
                           </p>
                           {origins.length > 1 && (
                             <p className="text-xs text-brand-600">📍 Desde {opt.originRef}</p>
+                          )}
+                          {opt.transport === "car" && (
+                            <p className="text-xs text-stone-400">
+                              🚗 {opt.distanceLabel}
+                              {opt.durationLabel && opt.durationLabel !== "—"
+                                ? ` · ${opt.durationLabel}`
+                                : ""}
+                            </p>
                           )}
                         </div>
                         <div className="text-right">
@@ -161,7 +221,11 @@ export default async function BuscarPage({ searchParams }) {
                             {formatEuro(opt.price)}
                           </p>
                           <p className="text-xs text-stone-400">
-                            {opt.airline ? `✈️ ${opt.airline}` : ""}
+                            {opt.transport === "car"
+                              ? "🚗 Coste total estimado"
+                              : opt.airline
+                                ? `✈️ ${opt.airline}`
+                                : ""}
                           </p>
                         </div>
                       </div>
@@ -176,16 +240,20 @@ export default async function BuscarPage({ searchParams }) {
                 </article>
               );
             })}
-            {monthOptions.length === 0 && (
+            {combos.length === 0 && (
               <p className="rounded-2xl bg-stone-50 p-4 text-sm text-stone-500">
-                No hemos encontrado vuelos para ninguna fin de semana de este mes.
+                {query.vacations
+                  ? query.transport === "car"
+                    ? "No hemos encontrado escapadas para ninguna combinación de fechas de tus vacaciones."
+                    : "No hemos encontrado vuelos para ninguna combinación de fechas de tus vacaciones."
+                  : "No hemos encontrado vuelos para ninguna fin de semana de este mes."}
               </p>
             )}
           </div>
         </section>
       ) : (
         <>
-          {best && (
+          {best && !query.vacations && (
             <section className="mb-6 rounded-xl2 bg-brand-600 p-5 text-white shadow-card">
               <p className="text-sm font-medium text-white/80">
                 🏆 Nuestra recomendación

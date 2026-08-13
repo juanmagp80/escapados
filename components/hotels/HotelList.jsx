@@ -1,9 +1,10 @@
+import { hotelReserveUrl } from "@/lib/booking/deeplinks";
 import { formatEuro } from "@/lib/utils/format";
 
-function HotelCard({ hotel, cheapest }) {
+function HotelCard({ hotel, cheapest, reserve }) {
   return (
     <a
-      href={hotel.link || "#"}
+      href={reserve}
       target="_blank"
       rel="noopener noreferrer"
       className={`relative flex gap-3 rounded-2xl border p-3 transition active:scale-[0.99] ${
@@ -55,12 +56,15 @@ function HotelCard({ hotel, cheapest }) {
             </span>
           ) : null}
         </div>
+        <div className="mt-2 inline-flex items-center gap-1 rounded-xl bg-brand-600 px-3 py-1.5 text-xs font-bold text-white">
+          🛎️ Reservar →
+        </div>
       </div>
     </a>
   );
 }
 
-export default function HotelList({ items, data }) {
+export default function HotelList({ items, data, checkIn, checkOut, guests }) {
   const showNoPricing =
     data?.source === "fallback" && items.some((h) => !h.pricePerNight);
   const firstPricedIndex = items.findIndex((h) => h.pricePerNight != null);
@@ -76,7 +80,12 @@ export default function HotelList({ items, data }) {
         </p>
       )}
       {items.map((h, i) => (
-        <HotelCard key={i} hotel={h} cheapest={i === firstPricedIndex} />
+        <HotelCard
+          key={i}
+          hotel={h}
+          cheapest={i === firstPricedIndex}
+          reserve={hotelReserveUrl(h, { checkIn, checkOut, adults: guests })}
+        />
       ))}
       {showNoPricing && (
         <p className="pt-1 text-xs text-stone-400">

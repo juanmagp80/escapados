@@ -35,6 +35,11 @@ export default function DestinationCard({ dest, query, multiOrigin = false }) {
             {multiOrigin && query.origin && (
               <span className="font-medium text-brand-600">📍 Desde {query.origin}</span>
             )}
+            {dest.bridge?.isBridge && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                📅 Puente
+              </span>
+            )}
             {dest.transportLabel && <span>{dest.transportLabel}</span>}
             {dest.distanceLabel && dest.distanceLabel !== "—" && (
               <span>🚗 {dest.distanceLabel}</span>
@@ -44,6 +49,12 @@ export default function DestinationCard({ dest, query, multiOrigin = false }) {
             )}
             {dest.weatherLabel && <span>☀️ {dest.weatherLabel}</span>}
           </div>
+
+          {dest.bridge?.holidays?.length > 0 && (
+            <div className="rounded-lg bg-amber-50 p-2 text-xs text-amber-800">
+              🎉 {dest.bridge.holidays.map((h) => `${h.name} (${h.day})`).join(" · ")}
+            </div>
+          )}
 
           {dest.altOrigins && dest.altOrigins.length > 0 && (
             <div className="rounded-lg bg-stone-50 p-2 text-xs text-stone-500">

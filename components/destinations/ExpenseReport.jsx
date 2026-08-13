@@ -5,6 +5,7 @@ import { useState } from "react";
 // Reporte de gasto real tras el viaje. Alimenta los datos de la comunidad.
 export default function ExpenseReport({ destination }) {
     const [expenses, setExpenses] = useState({
+        destination: destination || "",
         total: "",
         hotel: "",
         transport: "",
@@ -22,6 +23,10 @@ export default function ExpenseReport({ destination }) {
 
     async function handleSubmit(e) {
         e.preventDefault();
+        if (!expenses.destination.trim()) {
+            setMessage({ type: "error", text: "Indica el destino." });
+            return;
+        }
         if (!expenses.total) {
             setMessage({ type: "error", text: "Indica el gasto total." });
             return;
@@ -32,7 +37,7 @@ export default function ExpenseReport({ destination }) {
             const res = await fetch("/api/expense", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ destination, ...expenses }),
+                body: JSON.stringify(expenses),
             });
             const data = await res.json();
             if (data.error) {
@@ -52,6 +57,15 @@ export default function ExpenseReport({ destination }) {
             <p className="text-xs font-medium uppercase tracking-wide text-stone-400">
                 💶 ¿Ya has vuelto? Reporta tu gasto real
             </p>
+            <div>
+                <label className="mb-1 block text-xs text-stone-500">Destino</label>
+                <input
+                    type="text"
+                    className="field"
+                    value={expenses.destination}
+                    onChange={(e) => update("destination", e.target.value)}
+                />
+            </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 <div>
                     <label className="mb-1 block text-xs text-stone-500">Total (€)</label>

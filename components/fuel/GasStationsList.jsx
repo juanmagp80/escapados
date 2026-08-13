@@ -1,6 +1,7 @@
 "use client";
 
 import SectionLoader from "@/components/loading/SectionLoader";
+import { publishTripData } from "@/lib/client/tripDataBus";
 import { useEffect, useState } from "react";
 
 function price(value) {
@@ -99,6 +100,7 @@ export default function GasStationsList({
   destLat,
   destLon,
   routeCoordinates,
+  scope,
 }) {
   const [state, setState] = useState({ status: "loading", stations: [] });
 
@@ -129,8 +131,10 @@ export default function GasStationsList({
         const remaining = Math.max(0, minDelay - elapsed);
 
         setTimeout(() => {
-          if (data.stations && data.stations.length > 0) {
-            setState({ status: "done", stations: data.stations });
+          const stations = Array.isArray(data.stations) ? data.stations : [];
+          if (stations.length > 0) {
+            publishTripData(scope, "fuelStations", stations);
+            setState({ status: "done", stations });
           } else {
             setState({ status: "empty", stations: [] });
           }
@@ -147,7 +151,7 @@ export default function GasStationsList({
       });
 
     return () => ctrl.abort();
-  }, [originLat, originLon, destLat, destLon, routeCoordinates]);
+  }, [originLat, originLon, destLat, destLon, routeCoordinates, scope]);
 
   if (state.status === "loading")
     return <SectionLoader label="Buscando gasolineras en la ruta…" />;

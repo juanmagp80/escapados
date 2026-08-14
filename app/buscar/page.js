@@ -1,9 +1,9 @@
 import DestinationCard from "@/components/destinations/DestinationCard";
 import SurpriseMode from "@/components/destinations/SurpriseMode";
 import { categoryById } from "@/lib/destinations/categories";
+import { analyzeBridge } from "@/lib/destinations/holidays";
 import { runMultiOriginSearch, splitOrigins } from "@/lib/search/runMultiOrigin";
 import { runSearch } from "@/lib/search/runSearch";
-import { analyzeBridge } from "@/lib/destinations/holidays";
 import { formatEuro } from "@/lib/utils/format";
 import Link from "next/link";
 
@@ -102,6 +102,7 @@ export default async function BuscarPage({ searchParams }) {
             name: d.name,
             slug: d.slug,
             image: d.image,
+            airport: d.airport,
             outbound: opt.outbound,
             returnDate: opt.returnDate,
             nights: opt.nights,
@@ -137,8 +138,8 @@ export default async function BuscarPage({ searchParams }) {
           {query.vacations
             ? `Todas las escapadas de tus vacaciones (${query.startDate} → ${query.endDate}) · ${query.travelers} viajeros · ${query.transport === "car" ? "🚗 Coche (combinaciones de 2-5 días)" : "✈️ Avión (combinaciones de 2-5 días)"}`
             : query.wholeMonth
-            ? `Vuelos de ${new Date(query.startDate).toLocaleDateString("es-ES", { month: "long", year: "numeric" })} · ${query.travelers} viajeros · ✈️ Avión`
-            : `${query.startDate} → ${query.endDate} · ${query.travelers} viajeros · ${query.transport === "car" ? "🚗 Coche" : "✈️ Avión"}${query.flexible ? " · fechas flexibles" : ""}`}
+              ? `Vuelos de ${new Date(query.startDate).toLocaleDateString("es-ES", { month: "long", year: "numeric" })} · ${query.travelers} viajeros · ✈️ Avión`
+              : `${query.startDate} → ${query.endDate} · ${query.travelers} viajeros · ${query.transport === "car" ? "🚗 Coche" : "✈️ Avión"}${query.flexible ? " · fechas flexibles" : ""}`}
         </p>
       </header>
 
@@ -180,15 +181,16 @@ export default async function BuscarPage({ searchParams }) {
                 budget: query.budget,
                 maxKm: query.maxKm,
               });
+              if (opt.airport) detailQuery.set("airport", opt.airport);
               if (query.wholeMonth) detailQuery.set("wholeMonth", "1");
               if (query.vacations) detailQuery.set("vacations", "1");
               return (
                 <article key={`${opt.slug}-${opt.originRef}-${opt.outbound}-${opt.returnDate}`} className="card overflow-hidden">
                   <div className="flex gap-4">
-                    <div className="hidden h-full w-28 sm:block">
+                    <div className="relative hidden h-24 w-32 shrink-0 sm:block">
                       {opt.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={opt.image} alt={opt.name} className="h-full w-full object-cover" />
+                        <img src={opt.image} alt={opt.name} className="absolute inset-0 h-full w-full object-cover" />
                       ) : null}
                     </div>
                     <div className="flex flex-1 flex-col gap-1 p-4">
@@ -227,6 +229,11 @@ export default async function BuscarPage({ searchParams }) {
                                 ? `✈️ ${opt.airline}`
                                 : ""}
                           </p>
+                          {opt.transport !== "car" && (
+                            <p className="text-xs font-medium text-brand-600">
+                              Ida y vuelta · {query.travelers || 2} personas
+                            </p>
+                          )}
                         </div>
                       </div>
                       <Link

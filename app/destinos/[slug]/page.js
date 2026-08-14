@@ -98,6 +98,8 @@ export default async function DestinoPage({ params, searchParams }) {
     maxPrice: searchParams.maxPrice || "",
     flexible: searchParams.flexible === "1",
     wholeMonth: searchParams.wholeMonth === "1",
+    vacations: searchParams.vacations === "1",
+    airport: searchParams.airport || "",
   };
 
   const detail = await getDestinationDetail({
@@ -339,7 +341,11 @@ export default async function DestinoPage({ params, searchParams }) {
                     rel="noopener noreferrer"
                     className="mt-2 inline-block font-medium text-brand-600"
                   >
-                    Ver en {detail.flight.source === "Ryanair" ? "Ryanair" : "Google Flights"} →
+                    Ver en {detail.flight.link.startsWith("https://search.aviasales")
+                      ? "Aviasales"
+                      : detail.flight.source === "Ryanair"
+                        ? "Ryanair"
+                        : "Google Flights"} →
                   </a>
                 )}
                 <p className="pt-1 text-xs text-stone-400">

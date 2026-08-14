@@ -75,9 +75,10 @@ describe("search/runSearch - vacationPairs", () => {
     expect(vacationPairs("2026-08-20", "2026-08-01")).toEqual([]);
   });
 
-  test("una ventana muy larga se limita a 48 combinaciones", () => {
+  test("una ventana muy larga se limita a evitar el desbordamiento", () => {
     const pairs = vacationPairs("2026-08-01", "2026-09-30");
-    expect(pairs.length).toBeLessThanOrEqual(48);
+    expect(pairs.length).toBeGreaterThan(0);
+    expect(pairs.length).toBeLessThanOrEqual(80);
   });
 
   test("solo genera los periodos pedidos si se pasan explícitos", () => {

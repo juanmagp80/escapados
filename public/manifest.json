@@ -1,5 +1,5 @@
 {
-  "name": "Escapa2",
+  "name": "Escapa2 — ¿Dónde nos escapamos?",
   "short_name": "Escapa2",
   "description": "Asistente de escapadas para parejas - Encuentra destinos, alojamiento, transporte y planes",
   "start_url": "/",
@@ -7,28 +7,68 @@
   "background_color": "#fdfbf7",
   "theme_color": "#f97316",
   "orientation": "portrait-primary",
+  "lang": "es",
+  "dir": "ltr",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "categories": ["travel", "lifestyle"],
+  "categories": [
+    "travel",
+    "lifestyle"
+  ],
   "shortcuts": [
     {
       "name": "Buscar escapada",
       "short_name": "Buscar",
       "description": "Buscar una nueva escapada",
       "url": "/",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Mis viajes",
+      "short_name": "Viajes",
+      "description": "Ver mis viajes guardados",
+      "url": "/viajes",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Favoritos",
+      "short_name": "Favoritos",
+      "description": "Ver destinos favoritos",
+      "url": "/favoritos",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

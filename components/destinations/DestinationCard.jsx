@@ -1,18 +1,18 @@
-import Link from "next/link";
 import { formatEuro } from "@/lib/utils/format";
+import Link from "next/link";
 
 export default function DestinationCard({ dest, query, multiOrigin = false }) {
   const href = `/destinos/${dest.slug}?${new URLSearchParams(query).toString()}`;
   return (
     <Link href={href} className="block">
       <article className="card overflow-hidden transition active:scale-[0.99]">
-        <div className="relative h-36 bg-gradient-to-br from-brand-300 to-brand-500">
+        <div className="relative h-40 w-full bg-gradient-to-br from-brand-300 to-brand-500">
           {dest.image && (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={dest.image}
               alt={dest.name}
-              className="h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover"
               loading="lazy"
             />
           )}
@@ -80,11 +80,16 @@ export default function DestinationCard({ dest, query, multiOrigin = false }) {
               <p className="text-xs text-stone-400">
                 para {query.travelers || 2} personas · {dest.nights || 0} noches
               </p>
+              {query.transport === "plane" && dest.flight && (
+                <p className="text-xs font-medium text-brand-600">
+                  ✈️ Ida y vuelta · {query.travelers || 2} personas
+                </p>
+              )}
             </div>
             <span className="btn-primary shrink-0 !px-4 !py-2 text-sm">Ver escapada →</span>
           </div>
 
-<div className="border-t border-stone-100 pt-2 text-xs text-stone-500">
+          <div className="border-t border-stone-100 pt-2 text-xs text-stone-500">
             <div className="flex justify-between">
               <span>🏨 Alojamiento est. ({dest.nights || 0} noches)</span>
               <span className="font-medium text-ink">{formatEuro(dest.hotelCost)}</span>

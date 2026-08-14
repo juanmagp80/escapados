@@ -187,11 +187,13 @@ export default async function BuscarPage({ searchParams }) {
               return (
                 <article key={`${opt.slug}-${opt.originRef}-${opt.outbound}-${opt.returnDate}`} className="card overflow-hidden">
                   <div className="flex gap-4">
-                    <div className="relative hidden h-24 w-32 shrink-0 sm:block">
+                    <div className="relative h-24 w-32 shrink-0">
                       {opt.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={opt.image} alt={opt.name} className="absolute inset-0 h-full w-full object-cover" />
-                      ) : null}
+                      ) : (
+                        <div className="absolute inset-0 bg-gradient-to-br from-brand-300 to-brand-500" />
+                      )}
                     </div>
                     <div className="flex flex-1 flex-col gap-1 p-4">
                       <div className="flex items-start justify-between gap-3">

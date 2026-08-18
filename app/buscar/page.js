@@ -1,11 +1,13 @@
 ﻿import DestinationCard from "@/components/destinations/DestinationCard";
 import SurpriseMode from "@/components/destinations/SurpriseMode";
 import CityFilter from "@/components/search/CityFilter";
+import PriceAlertToggle from "@/components/search/PriceAlertToggle";
 import { categoryById } from "@/lib/destinations/categories";
 import { analyzeBridge } from "@/lib/destinations/holidays";
 import { runMultiOriginSearch, splitOrigins } from "@/lib/search/runMultiOrigin";
 import { runSearch } from "@/lib/search/runSearch";
 import { formatEuro } from "@/lib/utils/format";
+import { getCurrentUser } from "@/lib/supabase/session";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -71,6 +73,11 @@ export default async function BuscarPage({ searchParams }) {
   }
 
   const { destinations, best, failedOrigins = [] } = result;
+
+  // Usuario conectado y telegram configurado
+  const user = await getCurrentUser();
+  const hasTelegram = Boolean(user);
+  const showAlertToggle = user && (query.vacations || query.wholeMonth);
 
   // Todas las combinaciones del período, organizadas por ciudad.
   // Avión: cada combinación de fechas con su vuelo. Coche: cada combinación
@@ -207,12 +214,20 @@ export default async function BuscarPage({ searchParams }) {
         </aside>
       )}
 
-      {showCombos ? (
-        <section>
-          <p className="mb-3 text-sm font-medium text-stone-500">
-            {cityGroups.length} ciudades · {combos.length} combinaciones,
-            ordenadas de la más barata a la más cara
-          </p>
+       {showCombos ? (
+         <section>
+           <div className="mb-3 flex flex-col gap-2">
+             <p className="text-sm font-medium text-stone-500">
+               {cityGroups.length} ciudades · {combos.length} combinaciones,
+               ordenadas de la más barata a la más cara
+             </p>
+             {showAlertToggle && (
+               <PriceAlertToggle
+                 query={query}
+                 hasTelegram={hasTelegram}
+               />
+             )}
+           </div>
 
           {cityGroups.length > 1 && (
             <CityFilter cities={cityGroups} currentFilter={cityFilter} />

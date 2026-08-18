@@ -33,6 +33,7 @@ export async function POST(request) {
             ? Number(formData.get("default_budget"))
             : null,
         default_travelers: Number(formData.get("default_travelers")) || 2,
+        telegram_chat_id: formData.get("telegram_chat_id") || null,
     };
 
     const { error } = await supabase

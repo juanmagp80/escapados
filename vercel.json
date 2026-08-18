@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/puente",
       "schedule": "0 12 * * 4"
+    },
+    {
+      "path": "/api/cron/price-check",
+      "schedule": "0 9 * * *"
     }
   ]
 }

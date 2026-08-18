@@ -1,4 +1,6 @@
 import PushNotificationsToggle from "@/components/common/PushNotificationsToggle";
+import TelegramChatIdForm from "@/components/profile/TelegramChatIdForm";
+import PriceAlertsList from "@/components/profile/PriceAlertsList";
 import Achievements from "@/components/profile/Achievements";
 import PreferencesForm from "@/components/profile/PreferencesForm";
 import { findDestination } from "@/lib/destinations/catalog";
@@ -15,8 +17,9 @@ export default async function PerfilPage() {
     const supabase = getSupabaseServer();
     let preferences = {};
     let stats = { trips: 0, coastTrips: 0, interiorTrips: 0, destinations: 0, published: 0 };
+    let alerts = [];
     if (supabase) {
-        const [prefsRes, tripsRes, publishedRes] = await Promise.all([
+        const [prefsRes, tripsRes, publishedRes, alertsRes] = await Promise.all([
             supabase
                 .from("preferences")
                 .select("*")
@@ -27,6 +30,11 @@ export default async function PerfilPage() {
                 .from("published_trips")
                 .select("id")
                 .eq("user_id", user.id),
+            supabase
+                .from("price_alerts")
+                .select("*")
+                .eq("user_id", user.id)
+                .order("created_at", { ascending: false }),
         ]);
         preferences = prefsRes.data || {};
         const trips = tripsRes.data || [];
@@ -39,6 +47,7 @@ export default async function PerfilPage() {
             destinations: uniqueDestinations.size,
             published: published.length,
         };
+        alerts = alertsRes.data || [];
     }
 
     return (
@@ -55,13 +64,35 @@ export default async function PerfilPage() {
                 <PreferencesForm preferences={preferences} />
                 <div className="card p-5">
                     <h2 className="mb-1 text-lg font-bold text-ink">
-                        🔔 Notificaciones
+                        🔔 Notificaciones push
                     </h2>
                     <p className="mb-3 text-sm text-stone-500">
                         Recibe alertas de precio y cambios de meteorología en tu
                         dispositivo (PWA instalable).
                     </p>
                     <PushNotificationsToggle />
+                </div>
+
+                <div className="card p-5">
+                    <h2 className="mb-1 text-lg font-bold text-ink">
+                        📱 Notificaciones por Telegram
+                    </h2>
+                    <p className="mb-3 text-sm text-stone-500">
+                        Recibe un mensaje diario en Telegram cuando el precio de
+                        alguna escapada baje. Configura tu chat ID a continuación.
+                    </p>
+                    <TelegramChatIdForm chatId={preferences.telegram_chat_id} />
+                </div>
+
+                <div className="card p-5">
+                    <h2 className="mb-1 text-lg font-bold text-ink">
+                        📉 Alertas de precio guardadas
+                    </h2>
+                    <p className="mb-3 text-sm text-stone-500">
+                        Búsquedas que se re-lanzan diariamente y te notifican por
+                        Telegram cuando los precios bajan.
+                    </p>
+                    <PriceAlertsList alerts={alerts} />
                 </div>
             </div>
         </main>

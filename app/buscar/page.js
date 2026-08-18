@@ -1,5 +1,6 @@
-import DestinationCard from "@/components/destinations/DestinationCard";
+﻿import DestinationCard from "@/components/destinations/DestinationCard";
 import SurpriseMode from "@/components/destinations/SurpriseMode";
+import CityFilter from "@/components/search/CityFilter";
 import { categoryById } from "@/lib/destinations/categories";
 import { analyzeBridge } from "@/lib/destinations/holidays";
 import { runMultiOriginSearch, splitOrigins } from "@/lib/search/runMultiOrigin";
@@ -60,7 +61,7 @@ export default async function BuscarPage({ searchParams }) {
     return (
       <main className="container-narrow text-center">
         <p className="text-stone-600">
-          No hemos podido localizar “{query.origin}”.
+          No hemos podido localizar &ldquo;{query.origin}&rdquo;.
         </p>
         <Link href="/" className="btn-ghost mt-4">
           Probar otro origen
@@ -71,9 +72,11 @@ export default async function BuscarPage({ searchParams }) {
 
   const { destinations, best, failedOrigins = [] } = result;
 
-  // Todas las combinaciones del período, ordenadas de menor a mayor precio.
+  // Todas las combinaciones del período, organizadas por ciudad.
   // Avión: cada combinación de fechas con su vuelo. Coche: cada combinación
   // de 2-5 días con su coste total estimado.
+  // Dentro de cada ciudad, de más barato a más caro. Las ciudades sin vuelos
+  // aparecen al final.
   const showCombos = query.wholeMonth || query.vacations;
   const combos = [];
   if (showCombos) {
@@ -118,8 +121,50 @@ export default async function BuscarPage({ searchParams }) {
         }
       }
     }
-    combos.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
   }
+
+  // Agrupar combinaciones por ciudad y ordenar dentro de cada ciudad.
+  const cityMap = new Map();
+  for (const d of destinations) {
+    if (cityMap.has(d.slug)) continue;
+    cityMap.set(d.slug, {
+      name: d.name,
+      slug: d.slug,
+      image: d.image,
+      airport: d.airport,
+      distanceKm: d.distanceKm,
+      estimatedCost: d.estimatedCost,
+      noFlights: d.noFlights || false,
+      priceHint: d.priceHint,
+      options: [],
+    });
+  }
+  for (const opt of combos) {
+    const group = cityMap.get(opt.slug);
+    if (group) group.options.push(opt);
+  }
+  for (const group of cityMap.values()) {
+    group.options.sort(
+      (a, b) => (a.price ?? Infinity) - (b.price ?? Infinity)
+    );
+  }
+  // Ciudades con opciones primero (ordenadas por la más barata), luego las
+  // sin vuelos.
+  const cityGroups = [...cityMap.values()].sort((a, b) => {
+    if (a.options.length > 0 && b.options.length > 0) {
+      return (a.options[0].price ?? Infinity) - (b.options[0].price ?? Infinity);
+    }
+    if (a.options.length > 0) return -1;
+    if (b.options.length > 0) return 1;
+    return (a.estimatedCost ?? Infinity) - (b.estimatedCost ?? Infinity);
+  });
+
+  // Filtrar por ciudad si se selecciono una
+  const cityFilter = searchParams.city || "todas";
+  const filteredGroups =
+    cityFilter === "todas"
+      ? cityGroups
+      : cityGroups.filter((city) => city.slug === cityFilter);
 
   const originLabel = origins.length > 1
     ? origins.join(" o ")
@@ -146,7 +191,7 @@ export default async function BuscarPage({ searchParams }) {
       {failedOrigins.length > 0 && (
         <aside className="mb-5 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
           No hemos podido localizar{" "}
-          {failedOrigins.map((o) => `“${o}”`).join(", ")}. Mostramos las
+          {failedOrigins.map((o) => `"${o}"`).join(", ")}. Mostramos las
           escapadas desde {origins.filter((o) => !failedOrigins.includes(o)).join(" y ")}.
         </aside>
       )}
@@ -165,90 +210,131 @@ export default async function BuscarPage({ searchParams }) {
       {showCombos ? (
         <section>
           <p className="mb-3 text-sm font-medium text-stone-500">
-            {combos.length}{" "}
-            {query.transport === "car"
-              ? "escapadas posibles (combinaciones de 2-5 días), de la más barata a la más cara"
-              : "combinaciones de vuelo, de la más barata a la más cara"}
+            {cityGroups.length} ciudades · {combos.length} combinaciones,
+            ordenadas de la más barata a la más cara
           </p>
-          <div className="space-y-3">
-            {combos.map((opt) => {
-              const detailQuery = new URLSearchParams({
-                origin: opt.originRef,
-                startDate: opt.outbound,
-                endDate: opt.returnDate,
-                travelers: query.travelers,
-                transport: query.transport,
-                budget: query.budget,
-                maxKm: query.maxKm,
-              });
-              if (opt.airport) detailQuery.set("airport", opt.airport);
-              if (query.wholeMonth) detailQuery.set("wholeMonth", "1");
-              if (query.vacations) detailQuery.set("vacations", "1");
-              return (
-                <article key={`${opt.slug}-${opt.originRef}-${opt.outbound}-${opt.returnDate}`} className="card overflow-hidden">
-                  <div className="flex gap-4">
-                    <div className="relative h-24 w-32 shrink-0">
-                      {opt.image ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={opt.image} alt={opt.name} className="absolute inset-0 h-full w-full object-cover" />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-brand-300 to-brand-500" />
-                      )}
-                    </div>
-                    <div className="flex flex-1 flex-col gap-1 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="font-bold text-ink">{opt.name}</p>
-                          <p className="text-sm text-stone-500">
-                            {monthLabel(opt.outbound)} → {monthLabel(opt.returnDate)}{" "}
-                            <span className="text-stone-400">({opt.nights} noches)</span>
-                            {opt.bridge?.isBridge && (
-                              <span className="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-                                📅 Puente
-                              </span>
-                            )}
-                          </p>
-                          {origins.length > 1 && (
-                            <p className="text-xs text-brand-600">📍 Desde {opt.originRef}</p>
-                          )}
-                          {opt.transport === "car" && (
-                            <p className="text-xs text-stone-400">
-                              🚗 {opt.distanceLabel}
-                              {opt.durationLabel && opt.durationLabel !== "—"
-                                ? ` · ${opt.durationLabel}`
-                                : ""}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right">
-                          <p className="text-lg font-extrabold text-brand-600">
-                            {formatEuro(opt.price)}
-                          </p>
-                          <p className="text-xs text-stone-400">
-                            {opt.transport === "car"
-                              ? "🚗 Coste total estimado"
-                              : opt.airline
-                                ? `✈️ ${opt.airline}`
-                                : ""}
-                          </p>
-                          {opt.transport !== "car" && (
-                            <p className="text-xs font-medium text-brand-600">
-                              Ida y vuelta · {query.travelers || 2} personas
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <Link
-                        href={`/destinos/${opt.slug}?${detailQuery.toString()}`}
-                        className="btn-primary mt-2 w-fit !px-4 !py-2 text-sm"
-                      >
-                        Ver escapada
-                      </Link>
-                    </div>
+
+          {cityGroups.length > 1 && (
+            <CityFilter cities={cityGroups} currentFilter={cityFilter} />
+          )}
+
+          <div className="space-y-5">
+            {filteredGroups.map((city) => (
+              <div key={city.slug}>
+                <div className="mb-2 flex items-center gap-3 border-b border-stone-200 pb-2">
+                  <div className="relative h-10 w-10 shrink-0">
+                    {city.image ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={city.image}
+                        alt={city.name}
+                        className="h-full w-full rounded object-cover"
+                      />
+                    ) : (
+                      <div className="h-full w-full rounded bg-gradient-to-br from-brand-300 to-brand-500" />
+                    )}
                   </div>
-                </article>
-              );
-            })}
+                  <h2 className="text-lg font-bold text-ink">
+                    {city.name}
+                  </h2>
+                  {city.options.length > 0 ? (
+                    <span className="ml-auto text-sm font-bold text-brand-600">
+                      desde {formatEuro(city.options[0].price)}
+                    </span>
+                  ) : city.noFlights ? (
+                    <span className="ml-auto text-sm text-stone-400">
+                      Sin vuelos en este período
+                    </span>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  {city.options.length === 0 && city.noFlights ? (
+                    <p className="text-sm text-stone-500">
+                      No hay vuelos disponibles para este período. Prueba otras
+                      fechas.
+                    </p>
+                  ) : (
+                    city.options.map((opt) => {
+                      const detailQuery = new URLSearchParams({
+                        origin: opt.originRef,
+                        startDate: opt.outbound,
+                        endDate: opt.returnDate,
+                        travelers: query.travelers,
+                        transport: query.transport,
+                        budget: query.budget,
+                        maxKm: query.maxKm,
+                      });
+                      if (opt.airport) detailQuery.set("airport", opt.airport);
+                      if (query.wholeMonth) detailQuery.set("wholeMonth", "1");
+                      if (query.vacations) detailQuery.set("vacations", "1");
+                      return (
+                        <article
+                          key={`${opt.slug}-${opt.originRef}-${opt.outbound}-${opt.returnDate}`}
+                          className="card overflow-hidden"
+                        >
+                          <div className="flex gap-3">
+                            <div className="flex-1 p-3">
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <p className="text-sm text-stone-500">
+                                    {monthLabel(opt.outbound)} →{" "}
+                                    {monthLabel(opt.returnDate)}{" "}
+                                    <span className="text-stone-400">
+                                      ({opt.nights} noches)
+                                    </span>
+                                    {opt.bridge?.isBridge && (
+                                      <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">
+                                        📅 Puente
+                                      </span>
+                                    )}
+                                  </p>
+                                  {opt.transport === "car" && (
+                                    <p className="text-xs text-stone-400">
+                                      🚗 {opt.distanceLabel}
+                                      {opt.durationLabel && opt.durationLabel !== "—"
+                                        ? ` · ${opt.durationLabel}`
+                                        : ""}
+                                    </p>
+                                  )}
+                                  {origins.length > 1 && (
+                                    <p className="text-xs text-brand-600">
+                                      📍 Desde {opt.originRef}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-lg font-extrabold text-brand-600">
+                                    {formatEuro(opt.price)}
+                                  </p>
+                                  <p className="text-xs text-stone-400">
+                                    {opt.transport === "car"
+                                      ? "🚗 Coste total"
+                                      : opt.airline
+                                        ? `✈️ ${opt.airline}`
+                                        : ""}
+                                  </p>
+                                  {opt.transport !== "car" && (
+                                    <p className="text-xs font-medium text-brand-600">
+                                      Ida y vuelta · {query.travelers || 2} personas
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <Link
+                                href={`/destinos/${opt.slug}?${detailQuery.toString()}`}
+                                className="btn-primary mt-2 w-fit !px-4 !py-2 text-sm"
+                              >
+                                Ver escapada
+                              </Link>
+                            </div>
+                          </div>
+                        </article>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            ))}
             {combos.length === 0 && (
               <p className="rounded-2xl bg-stone-50 p-4 text-sm text-stone-500">
                 {query.vacations
@@ -272,13 +358,13 @@ export default async function BuscarPage({ searchParams }) {
                   <h2 className="text-2xl font-extrabold">{best.name}</h2>
                   <p className="text-sm text-white/90">
                     {query.transport === "plane" && best.flight?.airline
-                      ? `✈️ ${best.flight.airline}`
+                      ? `✈️ ${best.flight?.airline}`
                       : best.distanceLabel && best.distanceLabel !== "—"
                         ? `${best.distanceLabel} · `
                         : ""}
                     {query.transport === "car" &&
-                      best.durationLabel &&
-                      best.durationLabel !== "—"
+                    best.durationLabel &&
+                    best.durationLabel !== "—"
                       ? best.durationLabel
                       : ""}
                   </p>
